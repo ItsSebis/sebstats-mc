@@ -1,0 +1,5 @@
+name: SebStats
+version: '1.0.0'
+main: dev.sebi.sebstats.SebStatsPlugin
+api-version: '26.3'
+description: Live player stats leaderboards, collections and fun facts on a built-in website.

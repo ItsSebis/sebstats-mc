@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SebStats</title>
+<style>
+  :root {
+    --bg: #14171c; --panel: #1d2229; --panel-2: #262d36; --line: #323b46;
+    --text: #e8ecf1; --muted: #8b97a6; --accent: #5fd068; --gold: #f2c14e; --silver: #b8c2cc; --bronze: #cd8b5a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 20px 16px 8px; max-width: 1200px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: .5px; }
+  h1 span { color: var(--accent); }
+  .live { margin-left: auto; color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .live.ok .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  nav { max-width: 1200px; margin: 0 auto; padding: 8px 16px 0; display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
+  nav button { background: none; border: 0; color: var(--muted); font: inherit; font-weight: 600; padding: 10px 16px; cursor: pointer; border-bottom: 3px solid transparent; }
+  nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 10px; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+  .row { display: grid; grid-template-columns: 22px 26px 1fr auto; gap: 8px; align-items: center; padding: 4px 0; position: relative; }
+  .row .bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); opacity: .5; border-radius: 2px; }
+  .rank { color: var(--muted); font-weight: 700; text-align: center; }
+  .r1 .rank { color: var(--gold); } .r2 .rank { color: var(--silver); } .r3 .rank { color: var(--bronze); }
+  .row img { width: 26px; height: 26px; border-radius: 4px; image-rendering: pixelated; background: var(--panel-2); }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name i { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--accent); }
+  .val { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .empty { color: var(--muted); font-style: italic; padding: 6px 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .chip { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 4px 14px 4px 4px; cursor: pointer; font: inherit; }
+  .chip img { width: 24px; height: 24px; border-radius: 50%; }
+  .chip.active { border-color: var(--accent); background: var(--panel-2); }
+  .progress { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .meter { background: var(--panel-2); border-radius: 6px; height: 8px; overflow: hidden; margin-top: 6px; }
+  .meter > div { height: 100%; background: var(--accent); }
+  .progress .card b { font-size: 22px; }
+  .coll-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .coll-tabs button { background: var(--panel); border: 1px solid var(--line); color: var(--muted); font: inherit; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+  .coll-tabs button.active { color: var(--text); border-color: var(--accent); }
+  input[type=search] { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 12px; font: inherit; margin-left: auto; min-width: 180px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid hsl(var(--h) 60% 55%); border-radius: 6px; padding: 8px 10px; }
+  .tile .n { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .c { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .fact { display: flex; gap: 14px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .fact .ico { font-size: 30px; line-height: 1; }
+  .fact p { margin: 0; }
+  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Seb<span>Stats</span></h1>
+  <div id="live" class="live"><span class="dot"></span><span id="liveText">connecting…</span></div>
+</header>
+<nav id="tabs">
+  <button data-tab="boards" class="active">Leaderboards</button>
+  <button data-tab="collections">Collections</button>
+  <button data-tab="facts">Fun Facts</button>
+</nav>
+<main id="view"></main>
+
+<script>
+const BOARDS = [
+  { id: 'play_one_minute', title: '⏱️ Time Played', fmt: 'time' },
+  { id: 'deaths', title: '💀 Deaths', fmt: 'num' },
+  { id: 'mined', title: '⛏️ Blocks Mined', fmt: 'num', coll: 'mined' },
+  { id: 'crafted', title: '🛠️ Items Crafted', fmt: 'num', coll: 'crafted' },
+  { id: 'mob_kills', title: '🗡️ Mob Kills', fmt: 'num' },
+  { id: 'player_kills', title: '⚔️ Player Kills', fmt: 'num' },
+  { id: 'damage_dealt', title: '💢 Damage Dealt', fmt: 'hearts' },
+  { id: 'damage_taken', title: '🩸 Damage Taken', fmt: 'hearts' },
+  { id: 'travel_cm', title: '🧭 Distance Travelled', fmt: 'dist' },
+  { id: 'walk_one_cm', title: '🚶 Distance Walked', fmt: 'dist' },
+  { id: 'aviate_one_cm', title: '🪂 Elytra Flight', fmt: 'dist' },
+  { id: 'jump', title: '🦘 Jumps', fmt: 'num' },
+  { id: 'fish_caught', title: '🎣 Fish Caught', fmt: 'num' },
+  { id: 'animals_bred', title: '🐄 Animals Bred', fmt: 'num' },
+  { id: 'traded_with_villager', title: '🤝 Villager Trades', fmt: 'num' },
+  { id: 'sleep_in_bed', title: '🛏️ Nights Slept', fmt: 'num' },
+];
+const COLLECTIONS = [
+  ['mined', 'Blocks Mined'], ['crafted', 'Crafted'], ['picked_up', 'Picked Up'],
+  ['used', 'Used'], ['broken', 'Broken'], ['killed', 'Mobs Killed'], ['killed_by', 'Killed By'],
+];
+const FMT = {
+  num: v => v.toLocaleString(),
+  time: v => { const s = v / 20, h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h}h ${m}m` : `${m}m`; },
+  dist: v => { const m = v / 100; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; },
+  hearts: v => '❤ ' + Math.round(v / 20).toLocaleString(),
+};
+
+let data = null, tab = 'boards', selected = null, collTab = 'mined', search = '';
+const view = document.getElementById('view');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pretty = k => k.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+const hue = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+const avatar = p => `https://mc-heads.net/avatar/${p.uuid}/48`;
+
+function value(p, b) {
+  if (b.coll) return Object.values(p.collections[b.coll] || {}).reduce((a, c) => a + c, 0);
+  return p.stats[b.id] || 0;
+}
+
+function renderBoards() {
+  return '<div class="grid">' + BOARDS.map(b => {
+    const rows = data.players.map(p => ({ p, v: value(p, b) })).filter(r => r.v > 0)
+      .sort((a, c) => c.v - a.v).slice(0, 10);
+    const max = rows[0]?.v || 1;
+    const body = rows.length ? rows.map((r, i) => `
+      <div class="row r${i + 1}">
+        <span class="rank">${i + 1}</span><img src="${avatar(r.p)}" alt="" loading="lazy">
+        <span class="name">${esc(r.p.name)}${r.p.online ? '<i title="online"></i>' : ''}</span>
+        <span class="val">${FMT[b.fmt](r.v)}</span>
+        <span class="bar" style="width:${(r.v / max * 100).toFixed(1)}%"></span>
+      </div>`).join('') : '<div class="empty">No data yet</div>';
+    return `<div class="card"><h3>${b.title}</h3>${body}</div>`;
+  }).join('') + '</div>';
+}
+
+function renderCollections() {
+  if (!data.players.length) return '<div class="empty">No players yet.</div>';
+  if (!data.players.some(p => p.uuid === selected)) selected = data.players[0].uuid;
+  const p = data.players.find(x => x.uuid === selected);
+  const chips = data.players.map(x => `<button class="chip ${x.uuid === selected ? 'active' : ''}" data-player="${x.uuid}">
+      <img src="${avatar(x)}" alt="">${esc(x.name)}</button>`).join('');
+  const progress = [['mined', 'Blocks discovered'], ['crafted', 'Items crafted'], ['killed', 'Mob types killed']].map(([k, label]) => {
+    const have = Object.keys(p.collections[k] || {}).length, total = data.catalog[k];
+    return `<div class="card">${label}<br><b>${have}</b> <span style="color:var(--muted)">/ ${total}</span>
+      <div class="meter"><div style="width:${(have / total * 100).toFixed(1)}%"></div></div></div>`;
+  }).join('');
+  const tabs = COLLECTIONS.map(([k, label]) =>
+    `<button data-coll="${k}" class="${k === collTab ? 'active' : ''}">${label}</button>`).join('');
+  return `<div class="chips">${chips}</div><div class="progress">${progress}</div>
+    <div class="toolbar"><div class="coll-tabs">${tabs}</div>
+    <input type="search" id="search" placeholder="Filter…" value="${esc(search)}"></div>
+    <div id="tiles">${renderTiles(p)}</div>`;
+}
+
+function renderTiles(p) {
+  const q = search.toLowerCase();
+  const entries = Object.entries(p.collections[collTab] || {})
+    .filter(([k]) => k.replace(/_/g, ' ').includes(q)).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) return '<div class="empty">Nothing here yet.</div>';
+  return '<div class="tiles">' + entries.map(([k, v]) => `
+    <div class="tile" style="--h:${hue(k)}"><div class="n" title="${esc(pretty(k))}">${esc(pretty(k))}</div>
+    <div class="c">${v.toLocaleString()}</div></div>`).join('') + '</div>';
+}
+
+function renderFacts() {
+  return '<div class="facts">' + data.facts.map(f =>
+    `<div class="fact"><div class="ico">${f.icon}</div><p>${esc(f.text)}</p></div>`).join('') + '</div>';
+}
+
+function render() {
+  if (!data) return;
+  const scroll = window.scrollY;
+  view.innerHTML = { boards: renderBoards, collections: renderCollections, facts: renderFacts }[tab]();
+  window.scrollTo(0, scroll);
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  const t = e.target.dataset.tab; if (!t) return;
+  tab = t;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  render();
+});
+view.addEventListener('click', e => {
+  const c = e.target.closest('[data-player]'), k = e.target.closest('[data-coll]');
+  if (c) { selected = c.dataset.player; render(); }
+  if (k) { collTab = k.dataset.coll; render(); }
+});
+view.addEventListener('input', e => {
+  if (e.target.id !== 'search') return;
+  search = e.target.value;
+  document.getElementById('tiles').innerHTML = renderTiles(data.players.find(p => p.uuid === selected));
+});
+
+async function poll() {
+  const live = document.getElementById('live'), text = document.getElementById('liveText');
+  try {
+    const next = await (await fetch('/api/stats', { cache: 'no-store' })).json();
+    const changed = !data || JSON.stringify(next.players) !== JSON.stringify(data.players)
+      || JSON.stringify(next.facts) !== JSON.stringify(data.facts);
+    data = next;
+    live.classList.add('ok');
+    text.textContent = `live · ${data.online} online`;
+    if (changed && document.activeElement?.id !== 'search') render();
+  } catch {
+    live.classList.remove('ok');
+    text.textContent = 'offline, retrying…';
+  }
+}
+poll();
+setInterval(poll, 3000);
+</script>
+</body>
+</html>

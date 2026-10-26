@@ -1,0 +1,6 @@
+# Address and port the stats website listens on.
+bind-address: 0.0.0.0
+port: 8123
+
+# How often (in seconds) online players' stats are re-read.
+refresh-seconds: 3
