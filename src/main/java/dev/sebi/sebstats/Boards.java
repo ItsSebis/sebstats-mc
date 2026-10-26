@@ -42,7 +42,9 @@ final class Boards {
         stat("Fish Caught", "fish_caught", Boards::num),
         stat("Animals Bred", "animals_bred", Boards::num),
         stat("Villager Trades", "traded_with_villager", Boards::num),
-        stat("Nights Slept", "sleep_in_bed", Boards::num));
+        stat("Nights Slept", "sleep_in_bed", Boards::num),
+        stat("Raids Won", "raid_win", Boards::num),
+        new Board("Totems Used", p -> (double) p.entry("used", "totem_of_undying"), Boards::num, false, false));
 
     private static Board stat(String title, String key, Function<Double, String> format) {
         return new Board(title, p -> (double) p.stat(key), format, false, false);

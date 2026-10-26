@@ -78,6 +78,7 @@ const BOARDS = [
   { id: 'play_one_minute', title: '⏱️ Time Played', fmt: 'time' },
   { id: 'deaths', title: '💀 Deaths', fmt: 'num' },
   { id: 'deaths_per_hour', title: '🕊️ Deaths / Hour (fewest first)', fmt: 'rate', asc: true, keepZero: true,
+    empty: 'Needs 6+ minutes of playtime',
     calc: p => (p.stats.play_one_minute || 0) >= MIN_RATE_TICKS ? (p.stats.deaths || 0) / (p.stats.play_one_minute / 72000) : null },
   { id: 'mined', title: '⛏️ Blocks Mined', fmt: 'num', coll: 'mined' },
   { id: 'crafted', title: '🛠️ Items Crafted', fmt: 'num', coll: 'crafted' },
@@ -93,6 +94,8 @@ const BOARDS = [
   { id: 'animals_bred', title: '🐄 Animals Bred', fmt: 'num' },
   { id: 'traded_with_villager', title: '🤝 Villager Trades', fmt: 'num' },
   { id: 'sleep_in_bed', title: '🛏️ Nights Slept', fmt: 'num' },
+  { id: 'raid_win', title: '🏰 Raids Won', fmt: 'num' },
+  { id: 'totems_used', title: '🪬 Totems Used', fmt: 'num', calc: p => p.collections.used?.totem_of_undying || 0 },
 ];
 const COLLECTIONS = [
   ['mined', 'Blocks Mined'], ['crafted', 'Crafted'], ['picked_up', 'Picked Up'],
@@ -133,7 +136,7 @@ function renderBoards() {
         <span class="name">${esc(r.p.name)}${r.p.online ? '<i title="online"></i>' : ''}</span>
         <span class="val">${FMT[b.fmt](r.v)}</span>
         <span class="bar" style="width:${bar(r.v).toFixed(1)}%"></span>
-      </div>`).join('') : `<div class="empty">${b.calc ? 'Needs 6+ minutes of playtime' : 'No data yet'}</div>`;
+      </div>`).join('') : `<div class="empty">${b.empty || 'No data yet'}</div>`;
     return `<div class="card"><h3>${b.title}</h3>${body}</div>`;
   }).join('') + '</div>';
 }
