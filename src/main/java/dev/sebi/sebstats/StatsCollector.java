@@ -101,7 +101,7 @@ final class StatsCollector {
         }
     }
 
-    private record PlayerData(UUID uuid, String name, boolean online,
+    record PlayerData(UUID uuid, String name, boolean online,
                               Map<String, Long> stats, Map<String, Map<String, Long>> collections) {
         long stat(String key) {
             return stats.getOrDefault(key, 0L);
@@ -134,6 +134,7 @@ final class StatsCollector {
     private final Map<UUID, Long> nameRetryAt = new HashMap<>();
     private final Map<UUID, Overlay> overlays = new ConcurrentHashMap<>();
     private volatile Set<UUID> online = Set.of();
+    private volatile Map<UUID, List<Boards.Placement>> placements = Map.of();
     private final AtomicLong changes = new AtomicLong(1);
     private long builtAt = 0;
     private int cursor = 0;
@@ -148,6 +149,20 @@ final class StatsCollector {
 
     String json() {
         return json.get();
+    }
+
+    /** The player's leaderboard placings, best first; empty if unranked. */
+    List<Boards.Placement> placements(UUID id) {
+        return placements.getOrDefault(id, List.of());
+    }
+
+    java.util.Optional<UUID> uuidByName(String name) {
+        return names.entrySet().stream().filter(e -> e.getValue().equalsIgnoreCase(name))
+                .map(Map.Entry::getKey).findFirst();
+    }
+
+    String nameOf(UUID id) {
+        return names.getOrDefault(id, id.toString());
     }
 
     private static Path findStatsDir() {
@@ -325,6 +340,7 @@ final class StatsCollector {
     }
 
     private void publish(List<PlayerData> players) {
+        placements = Boards.compute(players);
         players.sort(Comparator.comparingLong((PlayerData p) -> p.stat("play_one_minute")).reversed());
 
         List<Map<String, Object>> playerJson = new ArrayList<>();

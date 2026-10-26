@@ -1,3 +1,7 @@
+# Public address of the stats website, shown (as a clickable link) by /stats.
+# Set this to your real URL, e.g. a Cloudflare tunnel hostname. Leave empty to hide the link.
+website-url: "http://localhost:8123"
+
 # Address and port the stats website listens on.
 bind-address: 0.0.0.0
 port: 8123
