@@ -28,7 +28,7 @@ final class Api {
     };
 
     static Result handle(String path, Map<String, String> query, String snapshot) {
-        JsonObject root = JsonParser.parseString(snapshot).getAsJsonObject();
+        JsonObject root = parse(snapshot);
         String[] p = path.replaceAll("^/+|/+$", "").split("/");
         // p[0] == "api"
         if (p.length == 1) return ok(index());
@@ -40,6 +40,18 @@ final class Api {
             case "leaderboard": return leaderboard(root, p, query);
             default: return notFound("no such endpoint");
         }
+    }
+
+    private static String lastSnapshot;
+    private static JsonObject lastRoot;
+
+    /** The snapshot string only changes when a rebuild happens, so parse it once per rebuild. */
+    private static synchronized JsonObject parse(String snapshot) {
+        if (snapshot != lastSnapshot) {
+            lastRoot = JsonParser.parseString(snapshot).getAsJsonObject();
+            lastSnapshot = snapshot;
+        }
+        return lastRoot;
     }
 
     private static JsonObject index() {

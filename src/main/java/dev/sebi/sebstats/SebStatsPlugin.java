@@ -7,13 +7,15 @@ import org.bukkit.scheduler.BukkitTask;
 public final class SebStatsPlugin extends JavaPlugin {
     private WebServer web;
     private BukkitTask task;
+    private BukkitTask asyncTask;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         StatsCollector collector = new StatsCollector();
         long period = Math.max(1, getConfig().getInt("refresh-seconds", 3)) * 20L;
-        task = getServer().getScheduler().runTaskTimer(this, collector, 20L, period);
+        task = getServer().getScheduler().runTaskTimer(this, collector::tick, 20L, period);
+        asyncTask = getServer().getScheduler().runTaskTimerAsynchronously(this, collector::rebuild, 30L, period);
 
         try {
             web = new WebServer(getConfig().getString("bind-address", "0.0.0.0"),
@@ -28,6 +30,7 @@ public final class SebStatsPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (task != null) task.cancel();
+        if (asyncTask != null) asyncTask.cancel();
         if (web != null) web.stop();
     }
 }

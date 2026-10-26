@@ -10,11 +10,11 @@ http://<server-ip>:8123/api
 
 ## Freshness
 
-The plugin re-reads stats on the main thread every `refresh-seconds` (default 3).
+Data comes from the server's own stats files (`players/stats/*.json`), parsed off the main thread every `refresh-seconds` (default 3). A file is only re-read when it changes.
 
-- **Online players** are updated every refresh.
-- **Offline players** are re-read about once a minute (at most 3 per refresh). A player who just logged out is refreshed immediately.
-- Players only appear once they have a name on record, so someone who has never joined is not listed.
+- **Online players** also get live values: every refresh the plugin re-reads, within a small per-tick time budget, the items already present in their file plus the general stats. An item a player has never collected before appears when the server next saves their stats (autosave, about every 5 minutes, or when they quit).
+- **Offline players** reflect their last saved stats file.
+- Players only appear once their name is known, so someone who has never joined is not listed.
 
 ## Endpoints
 

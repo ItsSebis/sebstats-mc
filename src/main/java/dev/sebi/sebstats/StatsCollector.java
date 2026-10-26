@@ -1,15 +1,26 @@
 package dev.sebi.sebstats;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
@@ -17,14 +28,23 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Statistic;
+import org.bukkit.World;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
-/** Reads player statistics on the main thread and publishes them as a JSON snapshot. */
-final class StatsCollector implements Runnable {
-    private static final long OFFLINE_REFRESH_MS = 60_000;
-    private static final int OFFLINE_BUDGET_PER_RUN = 3;
+/**
+ * Publishes player statistics as a JSON snapshot.
+ *
+ * <p>The bulk of the work is off the main thread: {@link #rebuild()} parses the vanilla stats files
+ * (only when their mtime changes) and builds the JSON. The main-thread {@link #tick()} only refreshes
+ * names and overlays live values for online players, limited to keys already present in their file
+ * and to a small time budget per tick, because Bukkit's statistic API is slow to scan exhaustively.
+ */
+final class StatsCollector {
+    private static final long OVERLAY_BUDGET_NANOS = 2_000_000;
+    private static final int NAMES_PER_TICK = 25;
+    private static final long NAME_RETRY_MS = 60_000;
 
     private static final String[] UNTYPED_STATS = {
         "PLAY_ONE_MINUTE", "TOTAL_WORLD_TIME", "DEATHS", "MOB_KILLS", "PLAYER_KILLS", "DAMAGE_DEALT",
@@ -34,40 +54,54 @@ final class StatsCollector implements Runnable {
         "TRADED_WITH_VILLAGER", "TALKED_TO_VILLAGER", "SLEEP_IN_BED", "CHEST_OPENED", "ITEM_ENCHANTED",
         "CAKE_SLICES_EATEN", "RAID_WIN", "LEAVE_GAME", "TIME_SINCE_DEATH",
     };
+    /** Vanilla stats-file keys that differ from the (Bukkit-derived) keys exposed by the API. */
+    private static final Map<String, String> RENAMED = Map.of(
+        "play_time", "play_one_minute", "open_chest", "chest_opened",
+        "enchant_item", "item_enchanted", "eat_cake_slice", "cake_slices_eaten");
     private static final String[] TRAVEL_STATS = {
         "walk_one_cm", "sprint_one_cm", "crouch_one_cm", "swim_one_cm", "aviate_one_cm",
         "boat_one_cm", "minecart_one_cm", "horse_one_cm", "pig_one_cm", "strider_one_cm",
     };
+    private static final List<String> COLLECTIONS =
+            List.of("mined", "crafted", "picked_up", "used", "broken", "killed", "killed_by");
+    private static final Map<String, Statistic> COLLECTION_STAT = Map.of(
+        "mined", Statistic.MINE_BLOCK, "crafted", Statistic.CRAFT_ITEM, "picked_up", Statistic.PICKUP,
+        "used", Statistic.USE_ITEM, "broken", Statistic.BREAK_ITEM, "killed", Statistic.KILL_ENTITY,
+        "killed_by", Statistic.ENTITY_KILLED_BY);
 
     private static final List<Statistic> UNTYPED = new ArrayList<>();
-    private static final List<Material> BLOCKS = new ArrayList<>();
-    private static final List<Material> ITEMS = new ArrayList<>();
-    private static final List<EntityType> MOBS = new ArrayList<>();
+    private static final Set<String> UNTYPED_KEYS = new HashSet<>();
+    private static final Map<String, Material> BLOCKS = new HashMap<>();
+    private static final Map<String, Material> ITEMS = new HashMap<>();
+    private static final Map<String, EntityType> MOBS = new HashMap<>();
 
     static {
         for (String name : UNTYPED_STATS) {
             try {
                 Statistic s = Statistic.valueOf(name);
-                if (s.getType() == Statistic.Type.UNTYPED) UNTYPED.add(s);
+                if (s.getType() == Statistic.Type.UNTYPED) {
+                    UNTYPED.add(s);
+                    UNTYPED_KEYS.add(name.toLowerCase());
+                }
             } catch (IllegalArgumentException ignored) {
                 // statistic doesn't exist in this version
             }
         }
         for (Material m : Material.values()) {
             if (m.isLegacy() || m.isAir()) continue;
-            if (m.isBlock()) BLOCKS.add(m);
-            if (m.isItem()) ITEMS.add(m);
+            if (m.isBlock()) BLOCKS.put(m.getKey().getKey(), m);
+            if (m.isItem()) ITEMS.put(m.getKey().getKey(), m);
         }
         for (EntityType t : EntityType.values()) {
             Class<?> c = t.getEntityClass();
             if (c != null && LivingEntity.class.isAssignableFrom(c)
                     && t != EntityType.PLAYER && t != EntityType.ARMOR_STAND) {
-                MOBS.add(t);
+                MOBS.put(t.getKey().getKey(), t);
             }
         }
     }
 
-    private record PlayerData(UUID uuid, String name, boolean onlineWhenRead, long readAt,
+    private record PlayerData(UUID uuid, String name, boolean online,
                               Map<String, Long> stats, Map<String, Map<String, Long>> collections) {
         long stat(String key) {
             return stats.getOrDefault(key, 0L);
@@ -85,85 +119,212 @@ final class StatsCollector implements Runnable {
         }
     }
 
+    /** What a player's stats file said when it was last parsed. */
+    private record FileData(long mtime, Map<String, Long> stats, Map<String, Map<String, Long>> collections) {
+        static final FileData EMPTY = new FileData(0, Map.of(), Map.of());
+    }
+
+    /** Live values for an online player, covering the same keys as the file plus all untyped stats. */
+    private record Overlay(Map<String, Long> stats, Map<String, Map<String, Long>> collections) {}
+
     private final Gson gson = new Gson();
-    private final Map<UUID, PlayerData> cache = new HashMap<>();
+    private final Path statsDir;
+    private final Map<UUID, FileData> files = new ConcurrentHashMap<>();
+    private final Map<UUID, String> names = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> nameRetryAt = new HashMap<>();
+    private final Map<UUID, Overlay> overlays = new ConcurrentHashMap<>();
+    private volatile Set<UUID> online = Set.of();
+    private final AtomicLong changes = new AtomicLong(1);
+    private long builtAt = 0;
+    private int cursor = 0;
     private final AtomicReference<String> json = new AtomicReference<>(
             "{\"updated\":0,\"online\":0,\"players\":[],\"facts\":[]}");
+
+    /** Must be called on the main thread. */
+    StatsCollector() {
+        statsDir = findStatsDir();
+        Bukkit.getLogger().info("[SebStats] Reading player stats from " + statsDir);
+    }
 
     String json() {
         return json.get();
     }
 
-    @Override
-    public void run() {
-        long now = System.currentTimeMillis();
-        Set<UUID> online = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toSet());
-
-        for (Player p : Bukkit.getOnlinePlayers()) cache.put(p.getUniqueId(), read(p, true, now));
-
-        int budget = OFFLINE_BUDGET_PER_RUN;
-        for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
-            UUID id = op.getUniqueId();
-            if (online.contains(id) || op.getName() == null) continue;
-            PlayerData old = cache.get(id);
-            boolean due = old == null || old.onlineWhenRead() || now - old.readAt() > OFFLINE_REFRESH_MS;
-            if (due && budget > 0) {
-                cache.put(id, read(op, false, now));
-                budget--;
+    private static Path findStatsDir() {
+        for (World w : Bukkit.getWorlds()) {
+            for (Path dir = w.getWorldFolder().toPath().toAbsolutePath(), i = dir; i != null && dir.getNameCount() - i.getNameCount() < 4; i = i.getParent()) {
+                for (String sub : new String[] {"players/stats", "stats"}) {
+                    Path p = i.resolve(sub);
+                    if (Files.isDirectory(p)) return p;
+                }
             }
         }
-        publish(online, now);
+        return Bukkit.getWorldContainer().toPath().toAbsolutePath().resolve("world/players/stats");
     }
 
-    private PlayerData read(OfflinePlayer p, boolean online, long now) {
-        Map<String, Long> stats = new LinkedHashMap<>();
+    // ---- main thread -------------------------------------------------------------------------------
+
+    /** Cheap main-thread work: names, the online set, and live overlays within a time budget. */
+    void tick() {
+        List<Player> players = new ArrayList<>(Bukkit.getOnlinePlayers());
+        Set<UUID> now = players.stream().map(Player::getUniqueId).collect(Collectors.toSet());
+        if (!now.equals(online)) {
+            online = now;
+            overlays.keySet().retainAll(now);
+            changes.incrementAndGet();
+        }
+        for (Player p : players) {
+            if (names.put(p.getUniqueId(), p.getName()) == null) changes.incrementAndGet();
+        }
+
+        int budget = NAMES_PER_TICK;
+        long wall = System.currentTimeMillis();
+        for (UUID id : files.keySet()) {
+            if (budget == 0) break;
+            if (names.containsKey(id) || nameRetryAt.getOrDefault(id, 0L) > wall) continue;
+            budget--;
+            String name = Bukkit.getOfflinePlayer(id).getName();
+            if (name != null) {
+                names.put(id, name);
+                nameRetryAt.remove(id);
+                changes.incrementAndGet();
+            } else {
+                nameRetryAt.put(id, wall + NAME_RETRY_MS); // so unresolvable ids can't starve the rest
+            }
+        }
+
+        long start = System.nanoTime();
+        for (int i = 0; i < players.size(); i++) {
+            if (i > 0 && System.nanoTime() - start > OVERLAY_BUDGET_NANOS) {
+                cursor = (cursor + i) % players.size();
+                return;
+            }
+            Player p = players.get((cursor + i) % players.size());
+            try {
+                overlays.put(p.getUniqueId(), readLive(p, files.getOrDefault(p.getUniqueId(), FileData.EMPTY)));
+                changes.incrementAndGet();
+            } catch (RuntimeException e) {
+                // fall back to the file data for this player rather than disturbing the tick
+            }
+        }
+    }
+
+    private static Overlay readLive(OfflinePlayer p, FileData base) {
+        Map<String, Long> stats = new HashMap<>();
         for (Statistic s : UNTYPED) {
             long v = p.getStatistic(s);
             if (v != 0) stats.put(s.name().toLowerCase(), v);
         }
-        long travel = 0;
-        for (String k : TRAVEL_STATS) travel += stats.getOrDefault(k, 0L);
-        if (travel > 0) stats.put("travel_cm", travel);
-
-        Map<String, Map<String, Long>> collections = new LinkedHashMap<>();
-        collections.put("mined", collect(p, Statistic.MINE_BLOCK, BLOCKS));
-        collections.put("crafted", collect(p, Statistic.CRAFT_ITEM, ITEMS));
-        collections.put("picked_up", collect(p, Statistic.PICKUP, ITEMS));
-        collections.put("used", collect(p, Statistic.USE_ITEM, ITEMS));
-        collections.put("broken", collect(p, Statistic.BREAK_ITEM, ITEMS));
-        collections.put("killed", collectMobs(p, Statistic.KILL_ENTITY));
-        collections.put("killed_by", collectMobs(p, Statistic.ENTITY_KILLED_BY));
-        return new PlayerData(p.getUniqueId(), p.getName(), online, now, stats, collections);
+        Map<String, Map<String, Long>> colls = new HashMap<>();
+        for (Map.Entry<String, Map<String, Long>> c : base.collections().entrySet()) {
+            Statistic stat = COLLECTION_STAT.get(c.getKey());
+            boolean mob = c.getKey().startsWith("killed");
+            Map<String, Long> out = new LinkedHashMap<>();
+            for (String key : c.getValue().keySet()) {
+                try {
+                    int v = mob ? p.getStatistic(stat, MOBS.get(key))
+                            : p.getStatistic(stat, (c.getKey().equals("mined") ? BLOCKS : ITEMS).get(key));
+                    if (v > 0) out.put(key, (long) v);
+                } catch (IllegalArgumentException | NullPointerException ignored) {
+                    out.put(key, c.getValue().get(key)); // keep the file value if the API rejects the key
+                }
+            }
+            colls.put(c.getKey(), out);
+        }
+        return new Overlay(stats, colls);
     }
 
-    private static Map<String, Long> collect(OfflinePlayer p, Statistic stat, List<Material> materials) {
-        Map<String, Long> out = new LinkedHashMap<>();
-        for (Material m : materials) {
-            try {
-                int v = p.getStatistic(stat, m);
-                if (v > 0) out.put(m.getKey().getKey(), (long) v);
-            } catch (IllegalArgumentException ignored) {
-                // material not applicable to this statistic
+    // ---- async -------------------------------------------------------------------------------------
+
+    /** Parses changed stats files and rebuilds the snapshot if anything changed. Runs off the main thread. */
+    void rebuild() {
+        scanFiles();
+        long version = changes.get();
+        if (version == builtAt) return;
+        builtAt = version;
+
+        Set<UUID> online = this.online;
+        Set<UUID> ids = new HashSet<>(files.keySet());
+        ids.addAll(online);
+
+        List<PlayerData> players = new ArrayList<>();
+        for (UUID id : ids) {
+            String name = names.get(id);
+            if (name == null) continue;
+            FileData file = files.getOrDefault(id, FileData.EMPTY);
+            Overlay live = overlays.get(id);
+            Map<String, Long> stats = new LinkedHashMap<>(file.stats());
+            Map<String, Map<String, Long>> colls = new LinkedHashMap<>();
+            for (String c : COLLECTIONS) colls.put(c, file.collections().getOrDefault(c, Map.of()));
+            if (live != null) {
+                stats.keySet().removeIf(UNTYPED_KEYS::contains);
+                stats.putAll(live.stats());
+                live.collections().forEach(colls::put);
+            }
+            long travel = 0;
+            for (String k : TRAVEL_STATS) travel += stats.getOrDefault(k, 0L);
+            if (travel > 0) stats.put("travel_cm", travel);
+            players.add(new PlayerData(id, name, online.contains(id), stats, colls));
+        }
+        publish(players);
+    }
+
+    private void scanFiles() {
+        if (!Files.isDirectory(statsDir)) return;
+        Set<UUID> seen = new HashSet<>();
+        try (DirectoryStream<Path> dir = Files.newDirectoryStream(statsDir, "*.json")) {
+            for (Path f : dir) {
+                String fn = f.getFileName().toString();
+                UUID id;
+                try {
+                    id = UUID.fromString(fn.substring(0, fn.length() - 5));
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+                seen.add(id);
+                long mtime = Files.getLastModifiedTime(f).toMillis();
+                FileData old = files.get(id);
+                if (old != null && old.mtime() == mtime) continue;
+                try {
+                    files.put(id, parse(f, mtime));
+                    changes.incrementAndGet();
+                } catch (RuntimeException | IOException e) {
+                    // file may be mid-write; try again next scan
+                }
+            }
+        } catch (IOException ignored) {
+            return;
+        }
+        if (files.keySet().retainAll(seen)) changes.incrementAndGet();
+    }
+
+    private static FileData parse(Path file, long mtime) throws IOException {
+        JsonObject stats;
+        try (Reader r = Files.newBufferedReader(file)) {
+            stats = JsonParser.parseReader(r).getAsJsonObject().getAsJsonObject("stats");
+        }
+        Map<String, Long> general = new LinkedHashMap<>();
+        Map<String, Map<String, Long>> colls = new LinkedHashMap<>();
+        if (stats != null) {
+            for (Map.Entry<String, JsonElement> group : stats.entrySet()) {
+                String g = group.getKey().replace("minecraft:", "");
+                for (Map.Entry<String, JsonElement> e : group.getValue().getAsJsonObject().entrySet()) {
+                    String key = e.getKey().replace("minecraft:", "");
+                    long v = e.getValue().getAsLong();
+                    if (v == 0) continue;
+                    if (g.equals("custom")) {
+                        key = RENAMED.getOrDefault(key, key);
+                        if (UNTYPED_KEYS.contains(key)) general.put(key, v);
+                    } else if (COLLECTIONS.contains(g)) {
+                        colls.computeIfAbsent(g, k -> new LinkedHashMap<>()).put(key, v);
+                    }
+                }
             }
         }
-        return out;
+        return new FileData(mtime, general, colls);
     }
 
-    private static Map<String, Long> collectMobs(OfflinePlayer p, Statistic stat) {
-        Map<String, Long> out = new LinkedHashMap<>();
-        for (EntityType t : MOBS) {
-            try {
-                int v = p.getStatistic(stat, t);
-                if (v > 0) out.put(t.getKey().getKey(), (long) v);
-            } catch (IllegalArgumentException ignored) {
-                // entity type not applicable to this statistic
-            }
-        }
-        return out;
-    }
-
-    private void publish(Set<UUID> online, long now) {
-        List<PlayerData> players = new ArrayList<>(cache.values());
+    private void publish(List<PlayerData> players) {
         players.sort(Comparator.comparingLong((PlayerData p) -> p.stat("play_one_minute")).reversed());
 
         List<Map<String, Object>> playerJson = new ArrayList<>();
@@ -171,14 +332,14 @@ final class StatsCollector implements Runnable {
             Map<String, Object> o = new LinkedHashMap<>();
             o.put("uuid", p.uuid().toString());
             o.put("name", p.name());
-            o.put("online", online.contains(p.uuid()));
+            o.put("online", p.online());
             o.put("stats", p.stats());
             o.put("collections", p.collections());
             playerJson.add(o);
         }
 
         Map<String, Object> root = new LinkedHashMap<>();
-        root.put("updated", now);
+        root.put("updated", System.currentTimeMillis());
         root.put("online", online.size());
         root.put("catalog", Map.of("mined", BLOCKS.size(), "crafted", ITEMS.size(), "killed", MOBS.size()));
         root.put("players", playerJson);

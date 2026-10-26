@@ -48,6 +48,10 @@
   input[type=search] { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 12px; font: inherit; margin-left: auto; min-width: 180px; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .tile { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid hsl(var(--h) 60% 55%); border-radius: 6px; padding: 8px 10px; }
+  .tile { display: flex; align-items: center; gap: 8px; }
+  .tile .t { min-width: 0; }
+  .icon { width: 24px; height: 24px; flex: none; image-rendering: pixelated; object-fit: contain; }
+  .icon.sw { border-radius: 4px; background: hsl(var(--h) 45% 35%); }
   .tile .n { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tile .c { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
@@ -73,6 +77,8 @@
 const BOARDS = [
   { id: 'play_one_minute', title: '⏱️ Time Played', fmt: 'time' },
   { id: 'deaths', title: '💀 Deaths', fmt: 'num' },
+  { id: 'deaths_per_hour', title: '🕊️ Deaths / Hour (fewest first)', fmt: 'rate', asc: true, keepZero: true,
+    calc: p => (p.stats.play_one_minute || 0) >= MIN_RATE_TICKS ? (p.stats.deaths || 0) / (p.stats.play_one_minute / 72000) : null },
   { id: 'mined', title: '⛏️ Blocks Mined', fmt: 'num', coll: 'mined' },
   { id: 'crafted', title: '🛠️ Items Crafted', fmt: 'num', coll: 'crafted' },
   { id: 'mob_kills', title: '🗡️ Mob Kills', fmt: 'num' },
@@ -92,7 +98,9 @@ const COLLECTIONS = [
   ['mined', 'Blocks Mined'], ['crafted', 'Crafted'], ['picked_up', 'Picked Up'],
   ['used', 'Used'], ['broken', 'Broken'], ['killed', 'Mobs Killed'], ['killed_by', 'Killed By'],
 ];
+const MIN_RATE_TICKS = 7200; // 6 min played before a per-hour rate is meaningful
 const FMT = {
+  rate: v => v.toFixed(2),
   num: v => v.toLocaleString(),
   time: v => { const s = v / 20, h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h}h ${m}m` : `${m}m`; },
   dist: v => { const m = v / 100; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; },
@@ -107,22 +115,25 @@ const hue = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 const avatar = p => `https://mc-heads.net/avatar/${p.uuid}/48`;
 
 function value(p, b) {
+  if (b.calc) return b.calc(p);
   if (b.coll) return Object.values(p.collections[b.coll] || {}).reduce((a, c) => a + c, 0);
   return p.stats[b.id] || 0;
 }
 
 function renderBoards() {
   return '<div class="grid">' + BOARDS.map(b => {
-    const rows = data.players.map(p => ({ p, v: value(p, b) })).filter(r => r.v > 0)
-      .sort((a, c) => c.v - a.v).slice(0, 10);
-    const max = rows[0]?.v || 1;
+    const rows = data.players.map(p => ({ p, v: value(p, b) }))
+      .filter(r => r.v !== null && (b.keepZero || r.v > 0))
+      .sort((a, c) => b.asc ? a.v - c.v : c.v - a.v).slice(0, 10);
+    const max = Math.max(...rows.map(r => r.v), 0) || 1;
+    const bar = v => (b.asc ? (max ? 1 - v / max * 0.9 : 1) : v / max) * 100;
     const body = rows.length ? rows.map((r, i) => `
       <div class="row r${i + 1}">
         <span class="rank">${i + 1}</span><img src="${avatar(r.p)}" alt="" loading="lazy">
         <span class="name">${esc(r.p.name)}${r.p.online ? '<i title="online"></i>' : ''}</span>
         <span class="val">${FMT[b.fmt](r.v)}</span>
-        <span class="bar" style="width:${(r.v / max * 100).toFixed(1)}%"></span>
-      </div>`).join('') : '<div class="empty">No data yet</div>';
+        <span class="bar" style="width:${bar(r.v).toFixed(1)}%"></span>
+      </div>`).join('') : `<div class="empty">${b.calc ? 'Needs 6+ minutes of playtime' : 'No data yet'}</div>`;
     return `<div class="card"><h3>${b.title}</h3>${body}</div>`;
   }).join('') + '</div>';
 }
@@ -146,14 +157,45 @@ function renderCollections() {
     <div id="tiles">${renderTiles(p)}</div>`;
 }
 
+// Icons come from PrismarineJS/minecraft-assets. Not every id has art (per-face blocks,
+// mobs without spawn eggs), so each id walks a fallback chain and ends on a colored swatch.
+const ICON_BASE = 'https://cdn.jsdelivr.net/gh/PrismarineJS/minecraft-assets@master/data/26.1/';
+const iconCache = new Map(); // id -> working path, or null when nothing matched
+const iconPaths = (k, mob) => mob ? [`items/${k}_spawn_egg`]
+  : [`items/${k}`, `blocks/${k}`, `blocks/${k}_front`, `blocks/${k}_side`, `blocks/${k}_top`];
+const swatch = k => `<span class="icon sw" style="--h:${hue(k)}"></span>`;
+
+function iconHtml(k, mob) {
+  const id = (mob ? 'm:' : 'i:') + k, hit = iconCache.get(id);
+  if (hit === null) return swatch(k);
+  return `<img class="icon" src="${ICON_BASE}${hit || iconPaths(k, mob)[0]}.png" data-k="${esc(k)}"
+    data-mob="${mob ? 1 : 0}" data-i="${hit ? -1 : 0}" alt="" loading="lazy">`;
+}
+
+view.addEventListener('load', e => {
+  const img = e.target; if (!img.classList?.contains('icon')) return;
+  const i = +img.dataset.i; if (i < 0) return;
+  iconCache.set((img.dataset.mob === '1' ? 'm:' : 'i:') + img.dataset.k, iconPaths(img.dataset.k, img.dataset.mob === '1')[i]);
+}, true);
+
+view.addEventListener('error', e => {
+  const img = e.target; if (!img.classList?.contains('icon')) return;
+  const mob = img.dataset.mob === '1', paths = iconPaths(img.dataset.k, mob), i = +img.dataset.i + 1;
+  if (i < paths.length) { img.dataset.i = i; img.src = `${ICON_BASE}${paths[i]}.png`; return; }
+  iconCache.set((mob ? 'm:' : 'i:') + img.dataset.k, null);
+  img.outerHTML = swatch(img.dataset.k);
+}, true);
+
 function renderTiles(p) {
   const q = search.toLowerCase();
   const entries = Object.entries(p.collections[collTab] || {})
     .filter(([k]) => k.replace(/_/g, ' ').includes(q)).sort((a, b) => b[1] - a[1]);
   if (!entries.length) return '<div class="empty">Nothing here yet.</div>';
+  const mob = collTab === 'killed' || collTab === 'killed_by';
   return '<div class="tiles">' + entries.map(([k, v]) => `
-    <div class="tile" style="--h:${hue(k)}"><div class="n" title="${esc(pretty(k))}">${esc(pretty(k))}</div>
-    <div class="c">${v.toLocaleString()}</div></div>`).join('') + '</div>';
+    <div class="tile" style="--h:${hue(k)}">${iconHtml(k, mob)}<div class="t">
+    <div class="n" title="${esc(pretty(k))}">${esc(pretty(k))}</div>
+    <div class="c">${v.toLocaleString()}</div></div></div>`).join('') + '</div>';
 }
 
 function renderFacts() {
