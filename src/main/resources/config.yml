@@ -8,3 +8,6 @@ port: 8123
 
 # How often (in seconds) online players' stats are re-read.
 refresh-seconds: 3
+
+# Celebrate play-time milestones (100, 250, 500, 1000 hours, then every 1000) with fireworks and an announcement.
+celebrations: true

@@ -8,6 +8,7 @@ public final class SebStatsPlugin extends JavaPlugin {
     private WebServer web;
     private BukkitTask task;
     private BukkitTask asyncTask;
+    private BukkitTask milestoneTask;
 
     @Override
     public void onEnable() {
@@ -17,6 +18,12 @@ public final class SebStatsPlugin extends JavaPlugin {
         long period = Math.max(1, getConfig().getInt("refresh-seconds", 3)) * 20L;
         task = getServer().getScheduler().runTaskTimer(this, collector::tick, 20L, period);
         asyncTask = getServer().getScheduler().runTaskTimerAsynchronously(this, collector::rebuild, 30L, period);
+
+        if (getConfig().getBoolean("celebrations", true)) {
+            Milestones milestones = new Milestones(this);
+            getServer().getPluginManager().registerEvents(milestones, this);
+            milestoneTask = getServer().getScheduler().runTaskTimer(this, milestones::check, 100L, 100L);
+        }
 
         getCommand("stats").setExecutor(new StatsCommand(this, collector));
 
@@ -49,6 +56,7 @@ public final class SebStatsPlugin extends JavaPlugin {
     public void onDisable() {
         if (task != null) task.cancel();
         if (asyncTask != null) asyncTask.cancel();
+        if (milestoneTask != null) milestoneTask.cancel();
         if (web != null) web.stop();
     }
 }
