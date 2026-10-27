@@ -9,10 +9,14 @@ import java.io.Reader;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Date;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,12 +30,16 @@ import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.Statistic;
 import org.bukkit.World;
+import org.bukkit.advancement.Advancement;
+import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import io.papermc.paper.advancement.AdvancementDisplay;
+import io.papermc.paper.text.PaperComponents;
+import net.kyori.adventure.text.Component;
 
 /**
  * Publishes player statistics as a JSON snapshot.
@@ -101,8 +109,8 @@ final class StatsCollector {
         }
     }
 
-    record PlayerData(UUID uuid, String name, boolean online,
-                              Map<String, Long> stats, Map<String, Map<String, Long>> collections) {
+    record PlayerData(UUID uuid, String name, boolean online, Map<String, Long> stats,
+                              Map<String, Map<String, Long>> collections, Map<String, Long> advancements) {
         long stat(String key) {
             return stats.getOrDefault(key, 0L);
         }
@@ -125,10 +133,22 @@ final class StatsCollector {
     }
 
     /** Live values for an online player, covering the same keys as the file plus all untyped stats. */
-    private record Overlay(Map<String, Long> stats, Map<String, Map<String, Long>> collections) {}
+    private record Overlay(Map<String, Long> stats, Map<String, Map<String, Long>> collections,
+                           Map<String, Long> advancements) {}
+
+    /** What a player's advancements file said when it was last parsed: id to epoch millis earned (0 = unknown). */
+    private record AdvFile(long mtime, Map<String, Long> earned) {}
+
+    /** A displayable advancement. Recipes and other display-less ones are not tracked. */
+    private record AdvDef(Advancement advancement, String id, Map<String, Object> json) {}
+
+    private static final DateTimeFormatter ADV_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
 
     private final Gson gson = new Gson();
     private final Path statsDir;
+    private final Path advancementsDir;
+    private final Map<UUID, AdvFile> advFiles = new ConcurrentHashMap<>();
+    private volatile List<AdvDef> advCatalog = List.of();
     private final Map<UUID, FileData> files = new ConcurrentHashMap<>();
     private final Map<UUID, String> names = new ConcurrentHashMap<>();
     private final Map<UUID, Long> nameRetryAt = new HashMap<>();
@@ -139,11 +159,12 @@ final class StatsCollector {
     private long builtAt = 0;
     private int cursor = 0;
     private final AtomicReference<String> json = new AtomicReference<>(
-            "{\"updated\":0,\"online\":0,\"players\":[],\"facts\":[]}");
+            "{\"updated\":0,\"online\":0,\"advancements\":[],\"players\":[],\"facts\":[]}");
 
     /** Must be called on the main thread. */
     StatsCollector() {
         statsDir = findStatsDir();
+        advancementsDir = statsDir.resolveSibling("advancements");
         Bukkit.getLogger().info("[SebStats] Reading player stats from " + statsDir);
     }
 
@@ -192,6 +213,11 @@ final class StatsCollector {
             if (names.put(p.getUniqueId(), p.getName()) == null) changes.incrementAndGet();
         }
 
+        if (advCatalog.isEmpty()) {
+            advCatalog = buildCatalog();
+            if (!advCatalog.isEmpty()) changes.incrementAndGet();
+        }
+
         int budget = NAMES_PER_TICK;
         long wall = System.currentTimeMillis();
         for (UUID id : files.keySet()) {
@@ -216,7 +242,7 @@ final class StatsCollector {
             }
             Player p = players.get((cursor + i) % players.size());
             try {
-                overlays.put(p.getUniqueId(), readLive(p, files.getOrDefault(p.getUniqueId(), FileData.EMPTY)));
+                overlays.put(p.getUniqueId(), readLive(p, files.getOrDefault(p.getUniqueId(), FileData.EMPTY), advCatalog));
                 changes.incrementAndGet();
             } catch (RuntimeException e) {
                 // fall back to the file data for this player rather than disturbing the tick
@@ -224,7 +250,7 @@ final class StatsCollector {
         }
     }
 
-    private static Overlay readLive(OfflinePlayer p, FileData base) {
+    private static Overlay readLive(Player p, FileData base, List<AdvDef> catalog) {
         Map<String, Long> stats = new HashMap<>();
         for (Statistic s : UNTYPED) {
             long v = p.getStatistic(s);
@@ -246,7 +272,54 @@ final class StatsCollector {
             }
             colls.put(c.getKey(), out);
         }
-        return new Overlay(stats, colls);
+        Map<String, Long> adv = new HashMap<>();
+        for (AdvDef def : catalog) {
+            AdvancementProgress progress = p.getAdvancementProgress(def.advancement());
+            if (!progress.isDone()) continue;
+            long earned = 0;
+            for (String criterion : progress.getAwardedCriteria()) {
+                Date date = progress.getDateAwarded(criterion);
+                if (date != null) earned = Math.max(earned, date.getTime());
+            }
+            adv.put(def.id(), earned);
+        }
+        return new Overlay(stats, colls, adv);
+    }
+
+    private static List<AdvDef> buildCatalog() {
+        List<AdvDef> out = new ArrayList<>();
+        for (Iterator<Advancement> it = Bukkit.advancementIterator(); it.hasNext();) {
+            Advancement a = it.next();
+            AdvancementDisplay d = a.getDisplay();
+            if (d == null || a.getParent() == null) continue; // recipes, and the root of each tab
+            String ns = a.getKey().getNamespace(), path = a.getKey().getKey();
+            String id = ns.equals("minecraft") ? path : ns + ":" + path;
+            String fallback = pretty(path.substring(path.lastIndexOf('/') + 1));
+            Map<String, Object> o = new LinkedHashMap<>();
+            o.put("id", id);
+            o.put("category", ns.equals("minecraft") ? path.substring(0, Math.max(0, path.indexOf('/'))) : ns);
+            o.put("title", text(d.title(), fallback));
+            o.put("description", text(d.description(), ""));
+            o.put("icon", d.icon().getType().getKey().getKey());
+            o.put("frame", d.frame().name().toLowerCase());
+            o.put("hidden", d.isHidden());
+            out.add(new AdvDef(a, id, o));
+        }
+        out.sort(Comparator.comparing((AdvDef d) -> (String) d.json().get("category")).thenComparing(AdvDef::id));
+        return out;
+    }
+
+    /** Plain text of a component; untranslated keys (e.g. "advancements.x.title") fall back to {@code fallback}. */
+    private static String text(Component c, String fallback) {
+        String s = PaperComponents.plainTextSerializer().serialize(c);
+        return s.isBlank() || s.startsWith("advancements.") ? fallback : s;
+    }
+
+    private static String pretty(String key) {
+        return java.util.Arrays.stream(key.split("_"))
+                .filter(w -> !w.isEmpty())
+                .map(w -> Character.toUpperCase(w.charAt(0)) + w.substring(1))
+                .collect(Collectors.joining(" "));
     }
 
     // ---- async -------------------------------------------------------------------------------------
@@ -259,6 +332,7 @@ final class StatsCollector {
         builtAt = version;
 
         Set<UUID> online = this.online;
+        List<AdvDef> catalog = advCatalog;
         Set<UUID> ids = new HashSet<>(files.keySet());
         ids.addAll(online);
 
@@ -279,12 +353,20 @@ final class StatsCollector {
             long travel = 0;
             for (String k : TRAVEL_STATS) travel += stats.getOrDefault(k, 0L);
             if (travel > 0) stats.put("travel_cm", travel);
-            players.add(new PlayerData(id, name, online.contains(id), stats, colls));
+            Map<String, Long> earned = live != null ? live.advancements()
+                    : advFiles.getOrDefault(id, new AdvFile(0, Map.of())).earned();
+            Map<String, Long> advancements = new LinkedHashMap<>();
+            for (AdvDef def : catalog) {
+                Long when = earned.get(def.id());
+                if (when != null) advancements.put(def.id(), when);
+            }
+            players.add(new PlayerData(id, name, online.contains(id), stats, colls, advancements));
         }
-        publish(players);
+        publish(players, catalog);
     }
 
     private void scanFiles() {
+        scanAdvancements();
         if (!Files.isDirectory(statsDir)) return;
         Set<UUID> seen = new HashSet<>();
         try (DirectoryStream<Path> dir = Files.newDirectoryStream(statsDir, "*.json")) {
@@ -313,6 +395,58 @@ final class StatsCollector {
         if (files.keySet().retainAll(seen)) changes.incrementAndGet();
     }
 
+    private void scanAdvancements() {
+        if (!Files.isDirectory(advancementsDir)) return;
+        try (DirectoryStream<Path> dir = Files.newDirectoryStream(advancementsDir, "*.json")) {
+            for (Path f : dir) {
+                String fn = f.getFileName().toString();
+                UUID id;
+                try {
+                    id = UUID.fromString(fn.substring(0, fn.length() - 5));
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+                long mtime = Files.getLastModifiedTime(f).toMillis();
+                AdvFile old = advFiles.get(id);
+                if (old != null && old.mtime() == mtime) continue;
+                try {
+                    advFiles.put(id, parseAdvancements(f, mtime));
+                    changes.incrementAndGet();
+                } catch (RuntimeException | IOException e) {
+                    // file may be mid-write; try again next scan
+                }
+            }
+        } catch (IOException ignored) {
+            // directory unreadable; keep what we have
+        }
+    }
+
+    private static AdvFile parseAdvancements(Path file, long mtime) throws IOException {
+        JsonObject root;
+        try (Reader r = Files.newBufferedReader(file)) {
+            root = JsonParser.parseReader(r).getAsJsonObject();
+        }
+        Map<String, Long> earned = new HashMap<>();
+        for (Map.Entry<String, JsonElement> e : root.entrySet()) {
+            if (!e.getValue().isJsonObject()) continue; // DataVersion
+            JsonObject adv = e.getValue().getAsJsonObject();
+            if (!adv.has("done") || !adv.get("done").getAsBoolean()) continue;
+            long when = 0;
+            JsonObject criteria = adv.getAsJsonObject("criteria");
+            if (criteria != null) {
+                for (JsonElement c : criteria.asMap().values()) {
+                    try {
+                        when = Math.max(when, OffsetDateTime.parse(c.getAsString(), ADV_DATE).toInstant().toEpochMilli());
+                    } catch (RuntimeException ignored) {
+                        // unknown date format: leave the date unknown
+                    }
+                }
+            }
+            earned.put(e.getKey().replace("minecraft:", ""), when);
+        }
+        return new AdvFile(mtime, earned);
+    }
+
     private static FileData parse(Path file, long mtime) throws IOException {
         JsonObject stats;
         try (Reader r = Files.newBufferedReader(file)) {
@@ -339,7 +473,7 @@ final class StatsCollector {
         return new FileData(mtime, general, colls);
     }
 
-    private void publish(List<PlayerData> players) {
+    private void publish(List<PlayerData> players, List<AdvDef> catalog) {
         placements = Boards.compute(players);
         players.sort(Comparator.comparingLong((PlayerData p) -> p.stat("play_one_minute")).reversed());
 
@@ -351,6 +485,7 @@ final class StatsCollector {
             o.put("online", p.online());
             o.put("stats", p.stats());
             o.put("collections", p.collections());
+            o.put("advancements", p.advancements());
             playerJson.add(o);
         }
 
@@ -358,6 +493,7 @@ final class StatsCollector {
         root.put("updated", System.currentTimeMillis());
         root.put("online", online.size());
         root.put("catalog", Map.of("mined", BLOCKS.size(), "crafted", ITEMS.size(), "killed", MOBS.size()));
+        root.put("advancements", catalog.stream().map(AdvDef::json).toList());
         root.put("players", playerJson);
         root.put("facts", FunFacts.generate(players));
         json.set(gson.toJson(root));
@@ -470,12 +606,6 @@ final class StatsCollector {
 
         private static String perHour(long count, long ticks) {
             return ticks <= 0 ? "-" : String.format("%.2f", count / (ticks / 72000.0));
-        }
-
-        private static String pretty(String key) {
-            return java.util.Arrays.stream(key.split("_"))
-                    .map(w -> Character.toUpperCase(w.charAt(0)) + w.substring(1))
-                    .collect(Collectors.joining(" "));
         }
     }
 }

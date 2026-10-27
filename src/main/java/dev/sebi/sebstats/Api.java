@@ -21,6 +21,8 @@ final class Api {
         "/api/players/{name|uuid}/stats              one player's numeric stats",
         "/api/players/{name|uuid}/collections        one player's collections",
         "/api/players/{name|uuid}/collections/{c}    one collection (mined, crafted, picked_up, used, broken, killed, killed_by)",
+        "/api/advancements                           advancement catalog with rarity (earned count and % of players)",
+        "/api/players/{name|uuid}/advancements       advancements one player has earned (id: epoch millis, 0 = date unknown)",
         "/api/leaderboard/{stat}                     ranking by a stat key (e.g. deaths, jump, travel_cm) or collection total (e.g. mined)",
         "/api/leaderboard/{collection}/{item}        ranking by one item (e.g. mined/diamond_ore, killed/creeper)",
         "/api/facts                                  fun facts",
@@ -35,6 +37,7 @@ final class Api {
         switch (p[1]) {
             case "stats": return p.length == 2 ? ok(root) : notFound("no such endpoint");
             case "facts": return ok(root.get("facts"));
+            case "advancements": return p.length == 2 ? ok(advancements(root)) : notFound("no such endpoint");
             case "online": return ok(online(root));
             case "players": return players(root, p);
             case "leaderboard": return leaderboard(root, p, query);
@@ -93,8 +96,27 @@ final class Api {
                 if (p.length == 5 && colls.has(p[4])) return ok(colls.get(p[4]));
                 return notFound("unknown collection: " + p[p.length - 1]);
             }
+            case "advancements": return p.length == 4 ? ok(player.get("advancements")) : notFound("no such endpoint");
             default: return notFound("no such endpoint");
         }
+    }
+
+    /** The catalog, each entry with how many known players have earned it. */
+    private static JsonArray advancements(JsonObject root) {
+        JsonArray players = root.getAsJsonArray("players");
+        JsonArray out = new JsonArray();
+        for (JsonElement e : root.getAsJsonArray("advancements")) {
+            JsonObject o = e.getAsJsonObject().deepCopy();
+            String id = o.get("id").getAsString();
+            int earned = 0;
+            for (JsonElement pl : players) {
+                if (pl.getAsJsonObject().getAsJsonObject("advancements").has(id)) earned++;
+            }
+            o.addProperty("earned", earned);
+            o.addProperty("percent", players.isEmpty() ? 0 : Math.round(earned * 1000.0 / players.size()) / 10.0);
+            out.add(o);
+        }
+        return out;
     }
 
     private static Result leaderboard(JsonObject root, String[] p, Map<String, String> query) {

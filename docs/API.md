@@ -20,13 +20,15 @@ Data comes from the server's own stats files (`players/stats/*.json`), parsed of
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/stats` | Everything: `updated`, `online`, `catalog`, `players`, `facts` |
+| `GET /api/stats` | Everything: `updated`, `online`, `catalog`, `advancements`, `players`, `facts` |
 | `GET /api/online` | Array of online player names |
 | `GET /api/players` | Array of `{uuid, name, online}` |
-| `GET /api/players/{player}` | One player: `{uuid, name, online, stats, collections}` |
+| `GET /api/players/{player}` | One player: `{uuid, name, online, stats, collections, advancements}` |
 | `GET /api/players/{player}/stats` | Only the player's `stats` object |
 | `GET /api/players/{player}/collections` | Only the player's `collections` object |
 | `GET /api/players/{player}/collections/{collection}` | One collection as `{item: count}` |
+| `GET /api/players/{player}/advancements` | Advancements the player has earned: `{id: epoch_millis}` |
+| `GET /api/advancements` | The advancement catalog with rarity: `earned` (players) and `percent` |
 | `GET /api/leaderboard/{stat}` | Ranking by a stat key or collection total |
 | `GET /api/leaderboard/{collection}/{item}` | Ranking by a single item |
 | `GET /api/facts` | Array of `{icon, text}` |
@@ -114,6 +116,12 @@ Seven objects of `{item: count}`: `mined`, `crafted`, `picked_up`, `used`, `brok
 - Keys are Minecraft IDs **without** the `minecraft:` prefix, e.g. `diamond_ore`, `creeper`.
 - Entries with a count of 0 are omitted.
 - `mined` uses block IDs. `crafted`, `picked_up`, `used` and `broken` use item IDs. `killed` and `killed_by` use living-entity IDs.
+
+### `advancements`
+
+The catalog (top level of `/api/stats`) lists every advancement that has a display, as `{id, category, title, description, icon, frame, hidden}`. The root advancement of each tab and recipe unlocks are left out. `id` is the vanilla id without `minecraft:` (e.g. `story/mine_stone`), `category` is its first path segment (`story`, `nether`, `end`, `adventure`, `husbandry`, or the namespace for datapack advancements), `icon` is an item id, and `frame` is `task`, `goal` or `challenge`.
+
+Each player has an `advancements` object of `{id: epoch_millis}` for what they have completed. The value is the time of the last criterion, or `0` if unknown. Online players are read live from the server; offline players come from their advancements file, which the server writes on autosave and when they quit.
 
 ### `catalog`
 

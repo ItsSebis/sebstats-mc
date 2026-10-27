@@ -58,6 +58,37 @@
   .fact { display: flex; gap: 14px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
   .fact .ico { font-size: 30px; line-height: 1; }
   .fact p { margin: 0; }
+  .strip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .strip .chip b { font-variant-numeric: tabular-nums; }
+  .strip .chip .pos { color: var(--muted); font-weight: 700; margin: 0 -2px 0 6px; }
+  .strip .chip.r1 .pos { color: var(--gold); } .strip .chip.r2 .pos { color: var(--silver); } .strip .chip.r3 .pos { color: var(--bronze); }
+  .adv { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-top: 1px solid var(--line); }
+  .adv .icon { width: 32px; height: 32px; }
+  .adv .info { flex: 1; min-width: 0; }
+  .adv .d { color: var(--muted); font-size: 13px; }
+  .adv .rar { background: var(--panel-2); height: 6px; border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .adv .rar > div { height: 100%; background: var(--accent); }
+  .adv .rar > div.rare { background: var(--gold); }
+  .adv .side { text-align: right; min-width: 110px; }
+  .adv .pct { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .adv .pct.rare { color: var(--gold); }
+  .faces { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px; margin-top: 3px; }
+  .faces img { width: 22px; height: 22px; border-radius: 4px; cursor: pointer; }
+  .faces span { color: var(--muted); font-size: 12px; align-self: center; }
+  .challenge { color: var(--gold); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-left: 6px; }
+  .back { background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; padding: 0; margin-bottom: 12px; }
+  .back:hover { color: var(--text); }
+  .phead { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .phead img { width: 48px; height: 48px; border-radius: 6px; }
+  .phead .grow { flex: 1; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+  .acard { display: flex; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .acard .icon { width: 32px; height: 32px; }
+  .acard.locked { opacity: .5; }
+  .acard.locked .icon { filter: grayscale(1); }
+  .acard .when { font-size: 12px; color: var(--accent); }
+  .acard.locked .when { color: var(--muted); }
+  .acard.challenge-card { border-color: var(--gold); }
   .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 </style>
 </head>
@@ -69,6 +100,7 @@
 <nav id="tabs">
   <button data-tab="boards" class="active">Leaderboards</button>
   <button data-tab="collections">Collections</button>
+  <button data-tab="achievements">Achievements</button>
   <button data-tab="facts">Fun Facts</button>
 </nav>
 <main id="view"></main>
@@ -111,6 +143,7 @@ const FMT = {
 };
 
 let data = null, tab = 'boards', selected = null, collTab = 'mined', search = '';
+let advCat = 'all', advSearch = '', advSort = 'rare', advPlayer = null;
 const view = document.getElementById('view');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pretty = k => k.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
@@ -201,6 +234,103 @@ function renderTiles(p) {
     <div class="c">${v.toLocaleString()}</div></div></div>`).join('') + '</div>';
 }
 
+const CAT_LABEL = { story: 'Story', nether: 'Nether', end: 'The End', adventure: 'Adventure', husbandry: 'Husbandry' };
+const catLabel = c => CAT_LABEL[c] || pretty(c.replace(/[:/]/g, '_'));
+const RARE_PCT = 15;
+const fmtDate = t => t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'date unknown';
+
+function advStats() {
+  const n = data.players.length || 1;
+  return data.advancements.map(a => {
+    const who = data.players.filter(p => a.id in p.advancements);
+    return { ...a, who, pct: who.length / n * 100 };
+  });
+}
+
+function advToolbar() {
+  const cats = ['all', ...new Set(data.advancements.map(a => a.category))];
+  const tabs = cats.map(c =>
+    `<button data-advcat="${esc(c)}" class="${c === advCat ? 'active' : ''}">${c === 'all' ? 'All' : esc(catLabel(c))}</button>`).join('');
+  const sort = advPlayer ? '' : `<button data-advsort="1">${advSort === 'rare' ? 'Rarest first' : 'Most common first'}</button>`;
+  return `<div class="toolbar"><div class="coll-tabs">${tabs}${sort}</div>
+    <input type="search" id="advsearch" placeholder="Filter…" value="${esc(advSearch)}"></div>`;
+}
+
+function advMatches(a) {
+  const q = advSearch.toLowerCase();
+  return (advCat === 'all' || a.category === advCat)
+    && (!q || a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
+}
+
+function renderAdvRows() {
+  const rows = advStats().filter(advMatches);
+  rows.sort((a, b) => {
+    const z = (b.who.length > 0) - (a.who.length > 0); // never-earned ones go last either way
+    return z || (advSort === 'rare' ? a.pct - b.pct : b.pct - a.pct) || a.title.localeCompare(b.title);
+  });
+  if (!rows.length) return '<div class="empty">No advancements match.</div>';
+  return rows.map(a => {
+    const rare = a.pct < RARE_PCT;
+    const faces = a.who.slice(0, 8).map(p =>
+      `<img src="${avatar(p)}" title="${esc(p.name)}" data-advplayer="${p.uuid}" alt="" loading="lazy">`).join('')
+      + (a.who.length > 8 ? `<span>+${a.who.length - 8}</span>` : '');
+    return `<div class="adv">${iconHtml(a.icon, false)}
+      <div class="info"><b>${esc(a.title)}</b>${a.frame === 'challenge' ? '<span class="challenge">challenge</span>' : ''}
+        <div class="d">${esc(a.description)} <span style="opacity:.6">· ${esc(catLabel(a.category))}</span></div>
+        <div class="rar"><div class="${rare ? 'rare' : ''}" style="width:${a.pct.toFixed(1)}%"></div></div></div>
+      <div class="side"><div class="pct ${rare && a.who.length ? 'rare' : ''}">${a.pct.toFixed(a.pct < 10 && a.pct > 0 ? 1 : 0)}%</div>
+        <div class="faces">${faces}</div></div></div>`;
+  }).join('');
+}
+
+function renderAchievements() {
+  if (!data.advancements?.length) return '<div class="empty">No advancement data yet.</div>';
+  if (advPlayer && !data.players.some(p => p.uuid === advPlayer)) advPlayer = null;
+  return advPlayer ? renderAdvPlayer() : renderAdvOverview();
+}
+
+function renderAdvOverview() {
+  const total = data.advancements.length;
+  const ranked = [...data.players].sort((a, b) =>
+    Object.keys(b.advancements).length - Object.keys(a.advancements).length || a.name.localeCompare(b.name));
+  const strip = ranked.map((p, i) => `<button class="chip r${i + 1}" data-advplayer="${p.uuid}">
+      <span class="pos">${i + 1}</span><img src="${avatar(p)}" alt="">${esc(p.name)}
+      <b>${Object.keys(p.advancements).length}</b><span style="color:var(--muted)">/ ${total}</span></button>`).join('');
+  return `<div class="strip">${strip}</div>${advToolbar()}<div id="advlist" class="card">${renderAdvRows()}</div>`;
+}
+
+function renderAdvCards(p) {
+  const rows = advStats().filter(advMatches);
+  rows.sort((a, b) => {
+    const ea = a.id in p.advancements, eb = b.id in p.advancements;
+    if (ea !== eb) return ea ? -1 : 1;
+    return ea ? (p.advancements[b.id] - p.advancements[a.id]) : (b.pct - a.pct) || a.title.localeCompare(b.title);
+  });
+  if (!rows.length) return '<div class="empty">No advancements match.</div>';
+  return '<div class="cards">' + rows.map(a => {
+    const got = a.id in p.advancements;
+    const when = got ? `Earned ${fmtDate(p.advancements[a.id])}` : 'Locked';
+    return `<div class="acard ${got ? '' : 'locked'} ${got && a.frame === 'challenge' ? 'challenge-card' : ''}">${iconHtml(a.icon, false)}
+      <div><b>${esc(a.title)}</b><div class="d" style="color:var(--muted);font-size:13px">${esc(a.description)}</div>
+      <div class="when">${when} · ${a.pct.toFixed(a.pct < 10 && a.pct > 0 ? 1 : 0)}% of players</div></div></div>`;
+  }).join('') + '</div>';
+}
+
+function renderAdvPlayer() {
+  const p = data.players.find(x => x.uuid === advPlayer);
+  const total = data.advancements.length, have = Object.keys(p.advancements).length;
+  const cats = [...new Set(data.advancements.map(a => a.category))].map(c => {
+    const all = data.advancements.filter(a => a.category === c);
+    return `${esc(catLabel(c))} <b style="color:var(--text)">${all.filter(a => a.id in p.advancements).length}/${all.length}</b>`;
+  }).join(' &nbsp;·&nbsp; ');
+  return `<button class="back" data-advback="1">← All players</button>
+    <div class="phead"><img src="${avatar(p)}" alt=""><div class="grow">
+      <b style="font-size:20px">${esc(p.name)}</b> <span style="color:var(--muted)">· ${have} / ${total} advancements (${(have / total * 100).toFixed(0)}%)</span>
+      <div class="meter"><div style="width:${(have / total * 100).toFixed(1)}%"></div></div></div></div>
+    <div style="color:var(--muted);margin-bottom:14px">${cats}</div>
+    ${advToolbar()}<div id="advlist">${renderAdvCards(p)}</div>`;
+}
+
 function renderFacts() {
   return '<div class="facts">' + data.facts.map(f =>
     `<div class="fact"><div class="ico">${f.icon}</div><p>${esc(f.text)}</p></div>`).join('') + '</div>';
@@ -209,7 +339,7 @@ function renderFacts() {
 function render() {
   if (!data) return;
   const scroll = window.scrollY;
-  view.innerHTML = { boards: renderBoards, collections: renderCollections, facts: renderFacts }[tab]();
+  view.innerHTML = { boards: renderBoards, collections: renderCollections, achievements: renderAchievements, facts: renderFacts }[tab]();
   window.scrollTo(0, scroll);
 }
 
@@ -223,8 +353,19 @@ view.addEventListener('click', e => {
   const c = e.target.closest('[data-player]'), k = e.target.closest('[data-coll]');
   if (c) { selected = c.dataset.player; render(); }
   if (k) { collTab = k.dataset.coll; render(); }
+  const ap = e.target.closest('[data-advplayer]'), ac = e.target.closest('[data-advcat]');
+  if (ap) { advPlayer = ap.dataset.advplayer; window.scrollTo(0, 0); render(); }
+  if (e.target.closest('[data-advback]')) { advPlayer = null; render(); }
+  if (ac) { advCat = ac.dataset.advcat; render(); }
+  if (e.target.closest('[data-advsort]')) { advSort = advSort === 'rare' ? 'common' : 'rare'; render(); }
 });
 view.addEventListener('input', e => {
+  if (e.target.id === 'advsearch') {
+    advSearch = e.target.value;
+    const p = data.players.find(x => x.uuid === advPlayer);
+    document.getElementById('advlist').innerHTML = p ? renderAdvCards(p) : renderAdvRows();
+    return;
+  }
   if (e.target.id !== 'search') return;
   search = e.target.value;
   document.getElementById('tiles').innerHTML = renderTiles(data.players.find(p => p.uuid === selected));
@@ -235,11 +376,12 @@ async function poll() {
   try {
     const next = await (await fetch('/api/stats', { cache: 'no-store' })).json();
     const changed = !data || JSON.stringify(next.players) !== JSON.stringify(data.players)
+      || next.advancements.length !== data.advancements.length
       || JSON.stringify(next.facts) !== JSON.stringify(data.facts);
     data = next;
     live.classList.add('ok');
     text.textContent = `live · ${data.online} online`;
-    if (changed && document.activeElement?.id !== 'search') render();
+    if (changed && !['search', 'advsearch'].includes(document.activeElement?.id)) render();
   } catch {
     live.classList.remove('ok');
     text.textContent = 'offline, retrying…';
