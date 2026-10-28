@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14171c">
 <title>SebStats</title>
 <style>
   :root {
@@ -10,6 +11,7 @@
     --text: #e8ecf1; --muted: #8b97a6; --accent: #5fd068; --gold: #f2c14e; --silver: #b8c2cc; --bronze: #cd8b5a;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 20px 16px 8px; max-width: 1200px; margin: 0 auto; }
   h1 { margin: 0; font-size: 26px; letter-spacing: .5px; }
@@ -18,11 +20,12 @@
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
   .live.ok .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
   @keyframes pulse { 50% { opacity: .45; } }
-  nav { max-width: 1200px; margin: 0 auto; padding: 8px 16px 0; display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
-  nav button { background: none; border: 0; color: var(--muted); font: inherit; font-weight: 600; padding: 10px 16px; cursor: pointer; border-bottom: 3px solid transparent; }
+  nav { max-width: 1200px; margin: 0 auto; padding: 8px 16px 0; display: flex; gap: 6px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { flex: none; white-space: nowrap; background: none; border: 0; color: var(--muted); font: inherit; font-weight: 600; padding: 10px 16px; cursor: pointer; border-bottom: 3px solid transparent; }
   nav button.active { color: var(--text); border-bottom-color: var(--accent); }
   main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
   .card h3 { margin: 0 0 10px; font-size: 15px; display: flex; gap: 8px; align-items: center; }
   .row { display: grid; grid-template-columns: 22px 26px 1fr auto; gap: 8px; align-items: center; padding: 4px 0; position: relative; }
@@ -38,7 +41,7 @@
   .chip { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 4px 14px 4px 4px; cursor: pointer; font: inherit; }
   .chip img { width: 24px; height: 24px; border-radius: 50%; }
   .chip.active { border-color: var(--accent); background: var(--panel-2); }
-  .progress { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .progress { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-bottom: 20px; }
   .meter { background: var(--panel-2); border-radius: 6px; height: 8px; overflow: hidden; margin-top: 6px; }
   .meter > div { height: 100%; background: var(--accent); }
   .progress .card b { font-size: 22px; }
@@ -54,7 +57,7 @@
   .icon.sw { border-radius: 4px; background: hsl(var(--h) 45% 35%); }
   .tile .n { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tile .c { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; }
   .fact { display: flex; gap: 14px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
   .fact .ico { font-size: 30px; line-height: 1; }
   .fact p { margin: 0; }
@@ -81,7 +84,7 @@
   .phead { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
   .phead img { width: 48px; height: 48px; border-radius: 6px; }
   .phead .grow { flex: 1; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 10px; }
   .acard { display: flex; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
   .acard .icon { width: 32px; height: 32px; }
   .acard.locked { opacity: .5; }
@@ -90,6 +93,30 @@
   .acard.locked .when { color: var(--muted); }
   .acard.challenge-card { border-color: var(--gold); }
   .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  @media (max-width: 600px) {
+    body { font-size: 14px; }
+    header { padding: 14px 12px 4px; gap: 6px 12px; }
+    h1 { font-size: 22px; }
+    nav { padding: 4px 12px 0; gap: 0; }
+    nav button { padding: 10px 12px; }
+    main { padding: 14px 12px 40px; }
+    .grid, .facts { gap: 12px; }
+    .chip, .coll-tabs button, .back { min-height: 40px; }
+    .coll-tabs button { padding: 5px 14px; }
+    .toolbar { align-items: stretch; }
+    .toolbar .coll-tabs { width: 100%; }
+    input[type=search] { margin-left: 0; width: 100%; min-width: 0; font-size: 16px; padding: 10px 12px; }
+    .tiles { grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr)); }
+    .adv { flex-wrap: wrap; gap: 8px 12px; }
+    .adv .info { flex-basis: calc(100% - 44px); }
+    .adv .side { min-width: 0; flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; flex-direction: row-reverse; text-align: left; padding-left: 44px; margin-top: -4px; }
+    .faces { justify-content: flex-start; margin-top: 0; }
+    .faces img { width: 26px; height: 26px; }
+    .phead { gap: 10px; }
+    .phead img { width: 40px; height: 40px; }
+    .fact { padding: 12px; gap: 10px; }
+  }
+  @media (hover: none) { .row, .adv { -webkit-tap-highlight-color: transparent; } }
 </style>
 </head>
 <body>
@@ -234,7 +261,7 @@ function renderTiles(p) {
     <div class="c">${v.toLocaleString()}</div></div></div>`).join('') + '</div>';
 }
 
-const CAT_LABEL = { story: 'Story', nether: 'Nether', end: 'The End', adventure: 'Adventure', husbandry: 'Husbandry' };
+const CAT_LABEL = { story: 'Story', nether: 'Nether', end: 'The End', adventure: 'Adventure', husbandry: 'Husbandry', smp: 'SMP' };
 const catLabel = c => CAT_LABEL[c] || pretty(c.replace(/[:/]/g, '_'));
 const RARE_PCT = 15;
 const fmtDate = t => t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'date unknown';
