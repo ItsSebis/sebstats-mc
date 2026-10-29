@@ -65,6 +65,14 @@ final class Milestones implements Listener {
         return 0;
     }
 
+    /** The first milestone in hours still ahead of a player with this many hours played. */
+    static int nextMilestone(long hours) {
+        for (int m : new int[] {100, 250, 500, 1000}) {
+            if (hours < m) return m;
+        }
+        return (int) (hours / 1000 + 1) * 1000;
+    }
+
     /** Main thread. Celebrates any online player who has passed a new milestone. */
     void check() {
         boolean changed = false;

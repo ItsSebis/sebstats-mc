@@ -129,7 +129,7 @@ Totals the plugin knows about, used for "x / y discovered" progress: `{"mined": 
 
 ### `facts`
 
-Generated each refresh from the current stats: records such as most deaths per hour or most jumps, server-wide totals (blocks mined, distance travelled, time played), the most-killed mob and most-mined block, and one rotating piece of Minecraft trivia. Fun-fact conversions used:
+Generated each refresh from the current stats: records such as most deaths per hour or most jumps, server-wide totals (blocks mined, distance travelled, time played), the most-killed mob and most-mined block, one rotating piece of Minecraft trivia, and a sample of player comparisons, rates and rivalries that changes hourly. Fun-fact conversions used:
 
 - Chests: blocks mined / 1,728 (27 stacks of 64)
 - Marathons: distance / 42,195 m

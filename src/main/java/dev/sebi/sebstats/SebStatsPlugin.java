@@ -9,6 +9,7 @@ public final class SebStatsPlugin extends JavaPlugin {
     private BukkitTask task;
     private BukkitTask asyncTask;
     private BukkitTask milestoneTask;
+    private BukkitTask motdTask;
 
     @Override
     public void onEnable() {
@@ -23,6 +24,13 @@ public final class SebStatsPlugin extends JavaPlugin {
             Milestones milestones = new Milestones(this);
             getServer().getPluginManager().registerEvents(milestones, this);
             milestoneTask = getServer().getScheduler().runTaskTimer(this, milestones::check, 100L, 100L);
+        }
+
+        if (getConfig().getBoolean("motd", true)) {
+            Motd motd = new Motd(collector);
+            getServer().getPluginManager().registerEvents(motd, this);
+            long motdPeriod = Math.max(1, getConfig().getInt("motd-minutes", 15)) * 1200L;
+            motdTask = getServer().getScheduler().runTaskTimer(this, motd::rotate, 100L, motdPeriod);
         }
 
         getCommand("stats").setExecutor(new StatsCommand(this, collector));
@@ -57,6 +65,7 @@ public final class SebStatsPlugin extends JavaPlugin {
         if (task != null) task.cancel();
         if (asyncTask != null) asyncTask.cancel();
         if (milestoneTask != null) milestoneTask.cancel();
+        if (motdTask != null) motdTask.cancel();
         if (web != null) web.stop();
     }
 }

@@ -11,3 +11,9 @@ refresh-seconds: 3
 
 # Celebrate play-time milestones (100, 250, 500, 1000 hours, then every 1000) with fireworks and an announcement.
 celebrations: true
+
+# Show a random fun fact (a comparison, a record, some trivia) as the server-list MOTD, replacing the usual one.
+motd: true
+
+# How often (in minutes) the MOTD fun fact changes.
+motd-minutes: 15

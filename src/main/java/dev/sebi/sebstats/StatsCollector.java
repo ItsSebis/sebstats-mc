@@ -155,6 +155,7 @@ final class StatsCollector {
     private final Map<UUID, Overlay> overlays = new ConcurrentHashMap<>();
     private volatile Set<UUID> online = Set.of();
     private volatile Map<UUID, List<Boards.Placement>> placements = Map.of();
+    private volatile List<String> motdFacts = List.of();
     private final AtomicLong changes = new AtomicLong(1);
     private long builtAt = 0;
     private int cursor = 0;
@@ -170,6 +171,11 @@ final class StatsCollector {
 
     String json() {
         return json.get();
+    }
+
+    /** Fun facts short enough for the server list; empty until the first snapshot is built. */
+    List<String> motdFacts() {
+        return motdFacts;
     }
 
     /** The player's leaderboard placings, best first; empty if unranked. */
@@ -294,7 +300,7 @@ final class StatsCollector {
             if (d == null || a.getParent() == null) continue; // recipes, and the root of each tab
             String ns = a.getKey().getNamespace(), path = a.getKey().getKey();
             String id = ns.equals("minecraft") ? path : ns + ":" + path;
-            String fallback = pretty(path.substring(path.lastIndexOf('/') + 1));
+            String fallback = FunFacts.pretty(path.substring(path.lastIndexOf('/') + 1));
             Map<String, Object> o = new LinkedHashMap<>();
             o.put("id", id);
             o.put("category", ns.equals("minecraft") ? path.substring(0, Math.max(0, path.indexOf('/'))) : ns);
@@ -313,13 +319,6 @@ final class StatsCollector {
     private static String text(Component c, String fallback) {
         String s = PaperComponents.plainTextSerializer().serialize(c);
         return s.isBlank() || s.startsWith("advancements.") ? fallback : s;
-    }
-
-    private static String pretty(String key) {
-        return java.util.Arrays.stream(key.split("_"))
-                .filter(w -> !w.isEmpty())
-                .map(w -> Character.toUpperCase(w.charAt(0)) + w.substring(1))
-                .collect(Collectors.joining(" "));
     }
 
     // ---- async -------------------------------------------------------------------------------------
@@ -476,6 +475,8 @@ final class StatsCollector {
     private void publish(List<PlayerData> players, List<AdvDef> catalog) {
         placements = Boards.compute(players);
         players.sort(Comparator.comparingLong((PlayerData p) -> p.stat("play_one_minute")).reversed());
+        FunFacts.Pool pool = FunFacts.pool(players);
+        motdFacts = FunFacts.motd(pool);
 
         List<Map<String, Object>> playerJson = new ArrayList<>();
         for (PlayerData p : players) {
@@ -495,117 +496,7 @@ final class StatsCollector {
         root.put("catalog", Map.of("mined", BLOCKS.size(), "crafted", ITEMS.size(), "killed", MOBS.size()));
         root.put("advancements", catalog.stream().map(AdvDef::json).toList());
         root.put("players", playerJson);
-        root.put("facts", FunFacts.generate(players));
+        root.put("facts", FunFacts.website(pool));
         json.set(gson.toJson(root));
-    }
-
-    /** Builds the fun-fact cards from the current snapshot. */
-    private static final class FunFacts {
-        private static final String[] TRIVIA = {
-            "A full Minecraft day lasts 20 real-life minutes.",
-            "Creepers were born from a bug while Notch was trying to make a pig: he mixed up the height and width.",
-            "Endermen can't see you if you wear a carved pumpkin on your head.",
-            "A single ender pearl thrown at the right angle can save you from a long fall. Or end you faster.",
-            "Cats scare away creepers. Phantoms are scared of cats too.",
-        };
-
-        static List<Map<String, String>> generate(List<PlayerData> ps) {
-            List<Map<String, String>> facts = new ArrayList<>();
-            if (ps.isEmpty()) {
-                facts.add(fact("👋", "Nobody has played yet. Join the server and be the first on the board!"));
-            } else {
-                add(facts, "⏱️", ps, p -> p.stat("play_one_minute"),
-                        (p, v) -> p.name() + " has spent " + hours(v / 20.0) + " in the world, the server's most dedicated player.");
-                add(facts, "💀", ps, p -> p.stat("deaths"),
-                        (p, v) -> p.name() + " has died " + n(v) + " times, " + perHour(v, p.stat("play_one_minute"))
-                                + " deaths per hour. Clumsiest around.");
-                add(facts, "⛏️", ps, p -> p.sum("mined"),
-                        (p, v) -> p.name() + " has mined " + n(v) + " blocks. That's " + n(v / 64) + " full stacks.");
-                add(facts, "💎", ps, p -> p.entry("mined", "diamond_ore", "deepslate_diamond_ore"),
-                        (p, v) -> p.name() + " has dug up " + n(v) + " diamond ore. Shiny.");
-                add(facts, "🏃", ps, p -> p.stat("travel_cm"),
-                        (p, v) -> p.name() + " has travelled " + km(v) + " km, about " + String.format("%.1f", v / 100.0 / 42195)
-                                + " marathons.");
-                add(facts, "🦘", ps, p -> p.stat("jump"),
-                        (p, v) -> p.name() + " has jumped " + n(v) + " times. Stacked up, that's "
-                                + String.format("%.2f", v * 1.25 / 8849) + "× the height of Mount Everest.");
-                add(facts, "🪂", ps, p -> p.stat("aviate_one_cm"),
-                        (p, v) -> p.name() + " has glided " + km(v) + " km on elytra.");
-                add(facts, "💥", ps, p -> p.entry("killed", "creeper"),
-                        (p, v) -> p.name() + " has defused " + n(v) + " creepers. The creepers did not ask for this.");
-                add(facts, "🧟", ps, p -> p.entry("killed", "zombie", "zombie_villager", "husk", "drowned"),
-                        (p, v) -> p.name() + " has put " + n(v) + " zombie-types back in the ground.");
-                add(facts, "🎣", ps, p -> p.stat("fish_caught"),
-                        (p, v) -> p.name() + " has caught " + n(v) + " things on a fishing rod. Some of it was even fish.");
-                add(facts, "🛠️", ps, p -> p.sum("crafted"),
-                        (p, v) -> p.name() + " has crafted " + n(v) + " items. Crafting table's best friend.");
-                add(facts, "🩸", ps, p -> p.stat("damage_taken"),
-                        (p, v) -> p.name() + " has absorbed " + n(v / 20) + " hearts' worth of damage. Human punching bag.");
-                add(facts, "🛏️", ps, p -> p.stat("sleep_in_bed"),
-                        (p, v) -> p.name() + " has slept in a bed " + n(v) + " times. Well rested.");
-                add(facts, "🐄", ps, p -> p.stat("animals_bred"),
-                        (p, v) -> p.name() + " has bred " + n(v) + " animals. The farm is thriving.");
-                add(facts, "🤝", ps, p -> p.stat("traded_with_villager"),
-                        (p, v) -> p.name() + " has traded with villagers " + n(v) + " times. Hrmm.");
-
-                long blocks = ps.stream().mapToLong(p -> p.sum("mined")).sum();
-                long travel = ps.stream().mapToLong(p -> p.stat("travel_cm")).sum();
-                long time = ps.stream().mapToLong(p -> p.stat("play_one_minute")).sum();
-                if (blocks > 0) {
-                    facts.add(fact("🌍", "Together you've mined " + n(blocks) + " blocks, enough to fill "
-                            + n(Math.max(1, blocks / 1728)) + " chests, stack by stack."));
-                }
-                if (travel > 0) {
-                    facts.add(fact("🧭", "Combined, the server has travelled " + km(travel) + " km, "
-                            + String.format("%.3f", travel / 100.0 / 1000 / 40075 * 100) + "% of the way around the real Earth."));
-                }
-                if (time > 0) {
-                    facts.add(fact("⌛", "Total time played across all players: " + hours(time / 20.0) + "."));
-                }
-                topEntry(ps, "killed").ifPresent(e -> facts.add(fact("🗡️",
-                        "The most-killed mob on the server is the " + pretty(e.getKey()) + " (" + n(e.getValue()) + " dead).")));
-                topEntry(ps, "mined").ifPresent(e -> facts.add(fact("🪨",
-                        "The most-mined block is " + pretty(e.getKey()) + " (" + n(e.getValue()) + " broken).")));
-            }
-            facts.add(fact("📚", TRIVIA[(int) (System.currentTimeMillis() / 3_600_000 % TRIVIA.length)]));
-            return facts;
-        }
-
-        private interface Describe {
-            String of(PlayerData p, long value);
-        }
-
-        private static void add(List<Map<String, String>> out, String icon, List<PlayerData> ps,
-                                ToLongFunction<PlayerData> metric, Describe text) {
-            Optional<PlayerData> best = ps.stream().filter(p -> metric.applyAsLong(p) > 0)
-                    .max(Comparator.comparingLong(metric));
-            best.ifPresent(p -> out.add(fact(icon, text.of(p, metric.applyAsLong(p)))));
-        }
-
-        private static Optional<Map.Entry<String, Long>> topEntry(List<PlayerData> ps, String collection) {
-            Map<String, Long> totals = new HashMap<>();
-            for (PlayerData p : ps) p.collections().getOrDefault(collection, Map.of()).forEach((k, v) -> totals.merge(k, v, Long::sum));
-            return totals.entrySet().stream().max(Map.Entry.comparingByValue());
-        }
-
-        private static Map<String, String> fact(String icon, String text) {
-            return Map.of("icon", icon, "text", text);
-        }
-
-        private static String n(long v) {
-            return String.format("%,d", v);
-        }
-
-        private static String km(long cm) {
-            return String.format("%,.1f", cm / 100000.0);
-        }
-
-        private static String hours(double seconds) {
-            return String.format("%,.1f hours", seconds / 3600);
-        }
-
-        private static String perHour(long count, long ticks) {
-            return ticks <= 0 ? "-" : String.format("%.2f", count / (ticks / 72000.0));
-        }
     }
 }
