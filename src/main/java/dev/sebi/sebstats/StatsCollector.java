@@ -30,6 +30,7 @@ import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Statistic;
 import org.bukkit.World;
 import org.bukkit.advancement.Advancement;
@@ -154,6 +155,7 @@ final class StatsCollector {
     private final Map<UUID, Long> nameRetryAt = new HashMap<>();
     private final Map<UUID, Overlay> overlays = new ConcurrentHashMap<>();
     private volatile Set<UUID> online = Set.of();
+    private volatile Set<UUID> banned = Set.of();
     private volatile Map<UUID, List<Boards.Placement>> placements = Map.of();
     private volatile List<String> motdFacts = List.of();
     private final AtomicLong changes = new AtomicLong(1);
@@ -184,7 +186,8 @@ final class StatsCollector {
     }
 
     java.util.Optional<UUID> uuidByName(String name) {
-        return names.entrySet().stream().filter(e -> e.getValue().equalsIgnoreCase(name))
+        return names.entrySet().stream()
+                .filter(e -> e.getValue().equalsIgnoreCase(name) && !banned.contains(e.getKey()))
                 .map(Map.Entry::getKey).findFirst();
     }
 
@@ -213,6 +216,11 @@ final class StatsCollector {
         if (!now.equals(online)) {
             online = now;
             overlays.keySet().retainAll(now);
+            changes.incrementAndGet();
+        }
+        Set<UUID> bans = Bukkit.getBannedPlayers().stream().map(OfflinePlayer::getUniqueId).collect(Collectors.toSet());
+        if (!bans.equals(banned)) {
+            banned = bans;
             changes.incrementAndGet();
         }
         for (Player p : players) {
@@ -334,6 +342,7 @@ final class StatsCollector {
         List<AdvDef> catalog = advCatalog;
         Set<UUID> ids = new HashSet<>(files.keySet());
         ids.addAll(online);
+        ids.removeAll(banned); // banned players are hidden from every stats page, board and fact
 
         List<PlayerData> players = new ArrayList<>();
         for (UUID id : ids) {

@@ -14,6 +14,7 @@ Data comes from the server's own stats files (`players/stats/*.json`), parsed of
 
 - **Online players** also get live values: every refresh the plugin re-reads, within a small per-tick time budget, the items already present in their file plus the general stats. An item a player has never collected before appears when the server next saves their stats (autosave, about every 5 minutes, or when they quit).
 - **Offline players** reflect their last saved stats file.
+- **Banned players** (server ban list) are left out of every snapshot, leaderboard, fun fact, MOTD and `/stats` lookup; they reappear if unbanned.
 - Players only appear once their name is known, so someone who has never joined is not listed.
 
 ## Endpoints
