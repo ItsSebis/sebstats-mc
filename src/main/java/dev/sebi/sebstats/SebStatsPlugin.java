@@ -10,6 +10,7 @@ public final class SebStatsPlugin extends JavaPlugin {
     private BukkitTask asyncTask;
     private BukkitTask milestoneTask;
     private BukkitTask motdTask;
+    private ServerMetrics metrics;
 
     @Override
     public void onEnable() {
@@ -33,11 +34,16 @@ public final class SebStatsPlugin extends JavaPlugin {
             motdTask = getServer().getScheduler().runTaskTimer(this, motd::rotate, 100L, motdPeriod);
         }
 
+        if (getConfig().getBoolean("server-stats", true)) {
+            metrics = new ServerMetrics(this);
+            metrics.start();
+        }
+
         getCommand("stats").setExecutor(new StatsCommand(this, collector));
 
         try {
             web = new WebServer(getConfig().getString("bind-address", "0.0.0.0"),
-                    getConfig().getInt("port", 8123), collector::json);
+                    getConfig().getInt("port", 8123), collector::json, metrics);
             getLogger().info("Stats website running on port " + web.port());
         } catch (IOException e) {
             getLogger().severe("Could not start stats website: " + e.getMessage());
@@ -67,5 +73,6 @@ public final class SebStatsPlugin extends JavaPlugin {
         if (milestoneTask != null) milestoneTask.cancel();
         if (motdTask != null) motdTask.cancel();
         if (web != null) web.stop();
+        if (metrics != null) metrics.stop();
     }
 }

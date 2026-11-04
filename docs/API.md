@@ -33,6 +33,7 @@ Data comes from the server's own stats files (`players/stats/*.json`), parsed of
 | `GET /api/leaderboard/{stat}` | Ranking by a stat key or collection total |
 | `GET /api/leaderboard/{collection}/{item}` | Ranking by a single item |
 | `GET /api/facts` | Array of `{icon, text}` |
+| `GET /api/server` | Server health and history: live gauges, TPS/MSPT/RAM/CPU/players history, heatmap, generated chunks, records, whole-server totals (404 if `server-stats: false`) |
 
 `{player}` is a username (case-insensitive) or a UUID.
 
@@ -127,6 +128,21 @@ Each player has an `advancements` object of `{id: epoch_millis}` for what they h
 ### `catalog`
 
 Totals the plugin knows about, used for "x / y discovered" progress: `{"mined": <block types>, "crafted": <item types>, "killed": <mob types>}`. Compare against the number of keys in a player's matching collection.
+
+### `server`
+
+`GET /api/server` backs the website's Server tab. It is separate from `/api/stats` so that endpoint stays small. Series are columnar: parallel arrays, one entry per row, with `t` in epoch seconds.
+
+- `now`: latest 5-second sample. `tps` (1-minute average, max 20), `mspt` (average tick time), `tickP50`/`tickP95`/`tickWorst` (median, 95th percentile and slowest of the last 100 ticks, ms), `online`, `maxPlayers`, `ramUsed`/`ramTotal`/`ramMax` (MB), `cpu` (this server process, %) and `sys` (whole machine, %; both omitted if the host does not report them), `gc` (% of time spent in garbage collection), `loadedChunks`, `entities`, `entityBreakdown` (`animals`, `monsters`, `villagers`, `items`, `other`, `hotspot` = most entities in a single chunk, `hotspotWorld`; counted once a minute), `uptimeMs`, `minecraft`, `software`, and `worlds` (`name`, `env`, `chunks`, `entities`, `day`, `storm`, `thunder`).
+- `recent`: one row per minute for the last 48 hours. Columns: `t`, `tps`, `tpsMin`, `mspt`, `msptP95` (95th percentile tick), `msptMax` (slowest single tick), `online`, `onlineMax`, `ram`, `cpu`, `sys` (negative = not available), `gc`, `chunks` (new chunks that minute), `loaded`, `entities`, `animals`, `monsters`, `villagers`, `items` (entities by kind; `other` is `entities` minus these), `hotspot`.
+- `hourly`: the same columns, one row per hour for the last 30 days. Full hourly history is kept on disk indefinitely.
+- `heatmap`: `{avg[168], n[168]}`, average players online per hour of the week in UTC. Index 0 is Monday 00:00 UTC; `n` is how many hours of data went into each cell. Clients shift the index by their own UTC offset.
+- `chunks`: `total` and `perWorld` (new chunks generated since tracking began, `since` in epoch millis; Minecraft does not record this, so earlier chunks are not counted) and `perDay` (`start` epoch seconds, `values[30]`).
+- `records`: `peakOnline`, `lowestTps`, `longestUptime` (each `{value, t}`), `busiestDay` (`{t, playerHours}`) and `lagMinutes24h` (minutes in the last 24 hours with TPS below 18).
+- `restarts`: epoch seconds where data resumes after a gap.
+- `numbers`: whole-server totals summed over all non-banned players: `players`, `distance_cm`, `elytra_cm`, `mined`, `placed` (uses of block items, as vanilla has no placed stat), `crafted`, `items_broken`, `mob_kills`, `deaths`, `play_ticks`, `jumps`, `fish_caught`, `animals_bred`, `villager_trades`, `damage_dealt`, `damage_taken`, `chests_opened`, `nights_slept`, `advancements`.
+
+History lives in `plugins/SebStats/metrics-minute.csv`, `metrics-hourly.csv` and `metrics-state.json`. Disable the whole feature with `server-stats: false`.
 
 ### `facts`
 

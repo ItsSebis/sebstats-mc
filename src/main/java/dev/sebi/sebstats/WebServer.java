@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 final class WebServer {
     private final HttpServer server;
 
-    WebServer(String bind, int port, Supplier<String> stats) throws IOException {
+    WebServer(String bind, int port, Supplier<String> stats, ServerMetrics metrics) throws IOException {
         byte[] page;
         try (InputStream in = WebServer.class.getResourceAsStream("/web/index.html")) {
             page = in.readAllBytes();
@@ -24,7 +24,7 @@ final class WebServer {
 
         server = HttpServer.create(new InetSocketAddress(bind, port), 0);
         server.createContext("/api", ex -> {
-            Api.Result r = Api.handle(ex.getRequestURI().getPath(), query(ex.getRequestURI().getRawQuery()), stats.get());
+            Api.Result r = Api.handle(ex.getRequestURI().getPath(), query(ex.getRequestURI().getRawQuery()), stats.get(), metrics);
             var gson = query(ex.getRequestURI().getRawQuery()).containsKey("pretty")
                     ? new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
                     : new GsonBuilder().disableHtmlEscaping().create();

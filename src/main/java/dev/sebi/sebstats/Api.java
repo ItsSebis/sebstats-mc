@@ -26,10 +26,11 @@ final class Api {
         "/api/leaderboard/{stat}                     ranking by a stat key (e.g. deaths, jump, travel_cm) or collection total (e.g. mined)",
         "/api/leaderboard/{collection}/{item}        ranking by one item (e.g. mined/diamond_ore, killed/creeper)",
         "/api/facts                                  fun facts",
+        "/api/server                                 server health: TPS/MSPT, RAM, CPU, players and chunk history, heatmap, totals",
         "                                            query params: ?limit=N on leaderboard; ?pretty=1 on any endpoint",
     };
 
-    static Result handle(String path, Map<String, String> query, String snapshot) {
+    static Result handle(String path, Map<String, String> query, String snapshot, ServerMetrics metrics) {
         JsonObject root = parse(snapshot);
         String[] p = path.replaceAll("^/+|/+$", "").split("/");
         // p[0] == "api"
@@ -37,6 +38,10 @@ final class Api {
         switch (p[1]) {
             case "stats": return p.length == 2 ? ok(root) : notFound("no such endpoint");
             case "facts": return ok(root.get("facts"));
+            case "server":
+                if (p.length != 2) return notFound("no such endpoint");
+                return metrics == null ? notFound("server stats are disabled (server-stats: false)")
+                        : ok(metrics.toJson(root.get("totals")));
             case "advancements": return p.length == 2 ? ok(advancements(root)) : notFound("no such endpoint");
             case "online": return ok(online(root));
             case "players": return players(root, p);

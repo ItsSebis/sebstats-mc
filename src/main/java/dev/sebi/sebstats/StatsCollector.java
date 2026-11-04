@@ -506,6 +506,38 @@ final class StatsCollector {
         root.put("advancements", catalog.stream().map(AdvDef::json).toList());
         root.put("players", playerJson);
         root.put("facts", FunFacts.website(pool));
+        root.put("totals", totals(players));
         json.set(gson.toJson(root));
+    }
+
+    /** Whole-server sums for the Server tab. Banned players are already excluded from {@code ps}. */
+    private static Map<String, Long> totals(List<PlayerData> ps) {
+        Map<String, Long> t = new LinkedHashMap<>();
+        t.put("players", (long) ps.size());
+        t.put("distance_cm", sum(ps, p -> p.stat("travel_cm")));
+        t.put("elytra_cm", sum(ps, p -> p.stat("aviate_one_cm")));
+        t.put("mined", sum(ps, p -> p.sum("mined")));
+        // Vanilla has no "blocks placed" stat; using a block item is the closest thing.
+        t.put("placed", sum(ps, p -> p.collections().getOrDefault("used", Map.of()).entrySet().stream()
+                .filter(e -> BLOCKS.containsKey(e.getKey())).mapToLong(Map.Entry::getValue).sum()));
+        t.put("crafted", sum(ps, p -> p.sum("crafted")));
+        t.put("items_broken", sum(ps, p -> p.sum("broken")));
+        t.put("mob_kills", sum(ps, p -> p.stat("mob_kills")));
+        t.put("deaths", sum(ps, p -> p.stat("deaths")));
+        t.put("play_ticks", sum(ps, p -> p.stat("play_one_minute")));
+        t.put("jumps", sum(ps, p -> p.stat("jump")));
+        t.put("fish_caught", sum(ps, p -> p.stat("fish_caught")));
+        t.put("animals_bred", sum(ps, p -> p.stat("animals_bred")));
+        t.put("villager_trades", sum(ps, p -> p.stat("traded_with_villager")));
+        t.put("damage_dealt", sum(ps, p -> p.stat("damage_dealt")));
+        t.put("damage_taken", sum(ps, p -> p.stat("damage_taken")));
+        t.put("chests_opened", sum(ps, p -> p.stat("chest_opened")));
+        t.put("nights_slept", sum(ps, p -> p.stat("sleep_in_bed")));
+        t.put("advancements", sum(ps, p -> p.advancements().size()));
+        return t;
+    }
+
+    private static long sum(List<PlayerData> ps, ToLongFunction<PlayerData> f) {
+        return ps.stream().mapToLong(f).sum();
     }
 }

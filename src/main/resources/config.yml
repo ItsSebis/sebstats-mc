@@ -17,3 +17,7 @@ motd: true
 
 # How often (in minutes) the MOTD fun fact changes.
 motd-minutes: 15
+
+# Record server health (TPS, RAM, CPU, players online, generated chunks) and show it on the website's Server tab.
+# History is kept in plugins/SebStats/metrics-*.csv.
+server-stats: true

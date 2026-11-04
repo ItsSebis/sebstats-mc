@@ -93,6 +93,67 @@
   .acard.locked .when { color: var(--muted); }
   .acard.challenge-card { border-color: var(--gold); }
   .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+
+  /* ---- Server tab ---- */
+  :root { --bad: #e5584f; --warn: #f08a3c; --blue: #6cb6ff; --violet: #b48cff; }
+  .srv { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .srv .card h3 { flex-wrap: wrap; }
+  .srv .card h3 small { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: auto; }
+  .hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 20px; align-items: center; }
+  .ring { width: 120px; height: 120px; position: relative; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+  .ring .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring .c b { font-size: 28px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ring .c span { font-size: 11px; color: var(--muted); letter-spacing: .5px; margin-top: 2px; }
+  .pill { display: inline-block; font-weight: 700; font-size: 13px; padding: 3px 12px; border-radius: 999px; border: 1px solid currentColor; }
+  .hero .hd p { margin: 8px 0 0; color: var(--muted); }
+  .kv { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 16px; }
+  .kv span { display: block; font-size: 12px; color: var(--muted); }
+  .kv b { font-size: 17px; font-variant-numeric: tabular-nums; }
+  .gauges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .g { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .g .lbl { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .g .big { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
+  .g .big small { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .g .sub { font-size: 12px; color: var(--muted); }
+  .g .meter { margin: 4px 0 0; }
+  .spark { width: 100%; height: 28px; display: block; margin-top: 4px; }
+  .chartwrap { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: crosshair; }
+  .chartwrap svg { width: 100%; height: auto; display: block; }
+  .tip { position: absolute; top: 2px; transform: translateX(-50%); pointer-events: none; display: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+  .axis { fill: var(--muted); font-size: 10px; }
+  .heat { display: grid; grid-template-columns: 28px repeat(24, minmax(0, 1fr)); gap: 2px; }
+  .heat .hc { aspect-ratio: 1; border-radius: 2px; background: var(--panel-2); opacity: .55; cursor: pointer; }
+  .heat .hc[style] { opacity: 1; }
+  .heat .hc.sel { outline: 2px solid var(--text); outline-offset: 0; position: relative; z-index: 1; }
+  .heat .hl { font-size: 10px; color: var(--muted); align-self: center; }
+  .heat .hh { font-size: 10px; color: var(--muted); grid-column: span 6; min-width: 0; white-space: nowrap; }
+  .legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin: 10px 0 0; }
+  .legend i { flex: 1; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--panel-2), var(--accent)); }
+  .callout { margin-top: 10px; color: var(--muted); }
+  .callout b { color: var(--text); }
+  .wrow { display: grid; grid-template-columns: minmax(70px, auto) 1fr auto; gap: 10px; align-items: center; padding: 3px 0; }
+  .wrow .meter { margin: 0; }
+  .bigcount { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .nums { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .num { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+  .num .ic { font-size: 22px; line-height: 1; }
+  .num b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; margin-top: 6px; }
+  .num span { font-size: 12px; color: var(--muted); }
+  .num i { display: block; font-style: normal; font-size: 11px; color: var(--muted); opacity: .85; margin-top: 2px; }
+  .rec { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .rec:first-of-type { border-top: 0; }
+  .rec span { color: var(--muted); font-size: 13px; }
+  .rec b { font-variant-numeric: tabular-nums; text-align: right; }
+  .lg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .lg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+  .lg b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .stackbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--panel-2); margin: 10px 0 4px; gap: 1px; }
+  .stackbar span { min-width: 2px; }
+  .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .pair span { display: block; font-size: 12px; color: var(--muted); }
+  .warn { color: var(--warn); }
+  @media (max-width: 900px) { .gauges { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 600px) {
     body { font-size: 14px; }
     header { padding: 14px 12px 4px; gap: 6px 12px; }
@@ -115,7 +176,18 @@
     .phead { gap: 10px; }
     .phead img { width: 40px; height: 40px; }
     .fact { padding: 12px; gap: 10px; }
+    .srv { gap: 12px; }
+    .ring { width: 104px; height: 104px; }
+    .ring .c b { font-size: 24px; }
+    .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gauges { gap: 10px; }
+    .g { padding: 10px 12px; }
+    .g .big { font-size: 22px; }
+    .heat { gap: 1px; grid-template-columns: 26px repeat(24, minmax(0, 1fr)); }
+    .bigcount { font-size: 28px; }
+    .chartwrap .tip { font-size: 11px; }
   }
+  @media (max-width: 360px) { .kv b { font-size: 15px; } .g .big { font-size: 20px; } }
   @media (hover: none) { .row, .adv { -webkit-tap-highlight-color: transparent; } }
 </style>
 </head>
@@ -129,6 +201,7 @@
   <button data-tab="collections">Collections</button>
   <button data-tab="achievements">Achievements</button>
   <button data-tab="facts">Fun Facts</button>
+  <button data-tab="server">Server</button>
 </nav>
 <main id="view"></main>
 
@@ -363,17 +436,394 @@ function renderFacts() {
     `<div class="fact"><div class="ico">${f.icon}</div><p>${esc(f.text)}</p></div>`).join('') + '</div>';
 }
 
+// ---- Server tab -------------------------------------------------------------------------------------
+let srv = null, srvErr = '', srvRange = '24h', srvMetric = 'tps', srvFirst = true, scrubUntil = 0, heatSel = null, chart = null;
+const SRV_RANGES = { '6h': 6, '24h': 24, '48h': 48, '30d': 720 };
+// Entity kinds, in stacking order. `other` has no column: it is the total minus the named kinds.
+const ENTITY_LAYERS = [
+  { id: 'animals',   key: 'animals',   label: 'Animals',   icon: '🐄', color: 'var(--accent)' },
+  { id: 'monsters',  key: 'monsters',  label: 'Monsters',  icon: '👹', color: 'var(--bad)' },
+  { id: 'villagers', key: 'villagers', label: 'Villagers', icon: '🧑‍🌾', color: 'var(--blue)' },
+  { id: 'items',     key: 'items',     label: 'Items',     icon: '📦', color: 'var(--gold)' },
+  { id: 'other',     key: null,        label: 'Other',     icon: '🧩', color: 'var(--muted)' },
+];
+const SRV_METRICS = {
+  tps:    { label: 'TPS',     key: 'tps',    ext: 'tpsMin',    extAgg: 'min', extLabel: 'min',  extColor: 'var(--bad)', color: 'var(--accent)', fmt: v => v.toFixed(1),
+            note: 'Dashed red line: lowest TPS in that minute.' },
+  mspt:   { label: 'MSPT',    key: 'mspt',   ext: 'msptP95',   extAgg: 'avg', extLabel: 'p95',  ext2: 'msptMax', ext2Agg: 'max', ext2Label: 'slowest', ext2Color: 'var(--bad)',
+            color: 'var(--blue)', fmt: v => v.toFixed(1) + ' ms',
+            note: 'Solid: average tick. Grey dashed: 95th-percentile tick. Red dashed: slowest single tick in that minute.' },
+  online: { label: 'Players', key: 'online', ext: 'onlineMax', extAgg: 'max', extLabel: 'peak', color: 'var(--gold)', fmt: v => String(+v.toFixed(1)), note: 'Dashed: most players at once in that minute.' },
+  ram:    { label: 'RAM',     key: 'ram',                                                       color: 'var(--violet)', fmt: v => Math.round(v).toLocaleString() + ' MB' },
+  cpu:    { label: 'CPU',     key: 'cpu',    ext: 'sys',       extAgg: 'avg', extLabel: 'machine', color: 'var(--warn)', fmt: v => v.toFixed(0) + '%', note: 'Solid: this server. Dashed: the whole machine.' },
+  chunks: { label: 'Chunks',  key: 'loaded',                                                    color: 'var(--accent)', fmt: v => Math.round(v).toLocaleString(), note: 'Loaded chunks across all worlds.' },
+  entities: { label: 'Entities', key: 'entities', stack: ENTITY_LAYERS,                          color: 'var(--text)', fmt: v => Math.round(v).toLocaleString(),
+            note: 'Loaded entities by kind. Kinds are counted once a minute.' },
+};
+const COUNT_FMT = {
+  int: v => Math.round(v).toLocaleString(),
+  km: v => v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' km',
+  h: v => Math.round(v).toLocaleString() + ' h',
+  hearts: v => '❤ ' + Math.round(v).toLocaleString(),
+};
+// [icon, totals key, label, count format, raw -> displayed number, optional caption(raw, totals)]
+const NUM_TILES = [
+  ['🧭', 'distance_cm', 'Distance travelled', 'km', v => v / 1e5, v => { const e = v / 1e5 / 40075;
+    return e >= 1 ? `${e.toFixed(2)}× around the Earth` : `${(e * 100).toFixed(2)}% around the Earth`; }],
+  ['⛏️', 'mined', 'Blocks mined', 'int', v => v, v => `${Math.round(v / 64).toLocaleString()} full stacks`],
+  ['🧱', 'placed', 'Blocks placed', 'int', v => v],
+  ['🗡️', 'mob_kills', 'Mobs killed', 'int', v => v],
+  ['💀', 'deaths', 'Deaths', 'int', v => v, (v, t) => t.play_ticks ? `one per ${(t.play_ticks / 72000 / v).toFixed(1)} h played` : ''],
+  ['⏱️', 'play_ticks', 'Time played', 'h', v => v / 72000, v => `${(v / 72000 / 24).toFixed(1)} days in total`],
+  ['🦘', 'jumps', 'Jumps', 'int', v => v, v => `${(v * 1.25 / 8849).toFixed(2)}× Mount Everest`],
+  ['🛠️', 'crafted', 'Items crafted', 'int', v => v],
+  ['🪂', 'elytra_cm', 'Elytra flight', 'km', v => v / 1e5],
+  ['🎣', 'fish_caught', 'Fish caught', 'int', v => v],
+  ['🐄', 'animals_bred', 'Animals bred', 'int', v => v],
+  ['🤝', 'villager_trades', 'Villager trades', 'int', v => v],
+  ['💢', 'damage_dealt', 'Damage dealt', 'hearts', v => v / 20],
+  ['🩸', 'damage_taken', 'Damage taken', 'hearts', v => v / 20],
+  ['🔨', 'items_broken', 'Tools worn out', 'int', v => v],
+  ['📦', 'chests_opened', 'Chests opened', 'int', v => v],
+  ['🛏️', 'nights_slept', 'Nights slept', 'int', v => v],
+  ['🏆', 'advancements', 'Advancements earned', 'int', v => v],
+];
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAYS_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const niceMax = v => { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; };
+const dur = ms => { const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m`; };
+const mem = mb => mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : Math.round(mb) + ' MB';
+const fmtDay = t => new Date(t * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const level = (tps, mspt) => tps >= 19.5 && mspt < 45 ? ['Smooth', 'var(--accent)'] : tps >= 17 ? ['Okay', 'var(--gold)']
+  : tps >= 12 ? ['Laggy', 'var(--warn)'] : ['Struggling', 'var(--bad)'];
+
+function sparkSvg(values, color) {
+  const v = values.filter(x => x >= 0);
+  if (v.length < 2) return '';
+  const lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
+  const pts = v.map((x, i) => `${(i / (v.length - 1) * 100).toFixed(1)},${(26 - (x - lo) / span * 24).toFixed(1)}`).join(' ');
+  return `<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+    <polyline points="${pts}" fill="none" style="stroke:${color}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
+}
+
+function heroHtml(n) {
+  const [label, color] = level(n.tps, n.mspt);
+  const C = 2 * Math.PI * 42, dash = Math.max(0, Math.min(1, n.tps / 20)) * C;
+  const cut = srv.updated / 1000 - 86400;
+  const peak = Math.max(n.online, ...srv.recent.onlineMax.filter((_, i) => srv.recent.t[i] >= cut));
+  const w = n.worlds?.find(x => x.env === 'normal') || n.worlds?.[0];
+  const weather = !w ? '' : w.thunder ? '⛈️ Storm' : w.storm ? '🌧️ Rain' : '☀️ Clear';
+  return `<div class="card hero">
+    <div class="ring"><svg viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="42" fill="none" stroke="var(--panel-2)" stroke-width="9"/>
+      <circle cx="50" cy="50" r="42" fill="none" style="stroke:${color}" stroke-width="9" stroke-linecap="round"
+        stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}"/></svg>
+      <div class="c"><b>${n.tps.toFixed(1)}</b><span>TPS</span></div></div>
+    <div class="hd"><span class="pill" style="color:${color}">${label}</span>
+      <p>Each tick takes ${n.mspt.toFixed(1)} ms of the 50 ms budget. ${n.minecraft ? `Minecraft ${esc(n.minecraft)}` : ''}</p></div>
+    <div class="kv">
+      <div><span>Players now</span><b>${n.online} / ${n.maxPlayers}</b></div>
+      <div><span>Peak, last 24h</span><b>${peak}</b></div>
+      <div><span>Uptime</span><b>${dur(n.uptimeMs)}</b></div>
+      <div><span>${w ? 'World day' : 'World'}</span><b>${w ? `${w.day.toLocaleString()} · ${weather}` : 'n/a'}</b></div>
+    </div></div>`;
+}
+
+function gaugesHtml(n) {
+  const r = srv.recent, last = k => r[k].slice(-60);
+  const bar = (pct, color) => `<div class="meter"><div style="width:${Math.min(100, pct).toFixed(1)}%;background:${color}"></div></div>`;
+  const budget = n.mspt / 50 * 100, ramPct = n.ramMax ? n.ramUsed / n.ramMax * 100 : 0;
+  const hot = p => p < 60 ? 'var(--accent)' : p < 85 ? 'var(--gold)' : 'var(--bad)';
+  const cpu = n.cpu == null
+    ? `<div class="big">n/a</div><div class="sub">Not reported by this host</div>`
+    : `<div class="big">${n.cpu.toFixed(0)}<small>%</small></div>${bar(n.cpu, hot(n.cpu))}
+       <div class="sub">${n.sys == null ? '' : `machine ${n.sys.toFixed(0)}% · `}GC ${n.gc.toFixed(1)}%</div>`;
+  return `<div class="gauges">
+    <div class="card g"><div class="lbl">TPS</div><div class="big">${n.tps.toFixed(1)}<small> / 20</small></div>
+      <div class="sub">1-minute average</div>${sparkSvg(last('tps'), 'var(--accent)')}</div>
+    <div class="card g"><div class="lbl">Tick time</div><div class="big">${n.mspt.toFixed(1)}<small> ms</small></div>
+      ${bar(budget, hot(budget))}<div class="sub">${Math.round(budget)}% of the 50 ms budget${n.tickP95 === undefined ? '' : `<br>p95 ${n.tickP95.toFixed(1)} ms · slowest ${n.tickWorst.toFixed(1)} ms`}</div>${sparkSvg(last('mspt'), 'var(--blue)')}</div>
+    <div class="card g"><div class="lbl">Memory</div><div class="big">${mem(n.ramUsed)}<small> / ${mem(n.ramMax)}</small></div>
+      ${bar(ramPct, hot(ramPct))}<div class="sub">${Math.round(ramPct)}% of max · ${mem(n.ramTotal)} allocated</div></div>
+    <div class="card g"><div class="lbl">CPU (server)</div>${cpu}${sparkSvg(last('cpu'), 'var(--warn)')}</div>
+  </div>`;
+}
+
+/** Averages a series down to at most ~500 points; null marks a missing value (e.g. CPU not reported). */
+function chartPoints(src, m, from) {
+  const pts = [];
+  for (let i = from; i < src.t.length; i++) {
+    const v = src[m.key][i], e = m.ext ? src[m.ext][i] : null, e2 = m.ext2 ? src[m.ext2][i] : null;
+    let st = null;
+    if (m.stack) {
+      st = m.stack.map(l => l.key ? src[l.key][i] : 0);
+      st[st.length - 1] = Math.max(0, v - st.reduce((a, b) => a + b, 0)); // "other" = total minus the named kinds
+    }
+    pts.push({ t: src.t[i], v: v < 0 ? null : v, e: e !== null && e < 0 ? null : e, e2: e2 !== null && e2 < 0 ? null : e2, s: st });
+  }
+  const k = Math.ceil(pts.length / 500);
+  if (k <= 1) return pts;
+  const agg = (a, how) => !a.length ? null : how === 'min' ? Math.min(...a) : how === 'max' ? Math.max(...a) : a.reduce((s, x) => s + x, 0) / a.length;
+  const out = [];
+  for (let i = 0; i < pts.length; i += k) {
+    const b = pts.slice(i, i + k);
+    out.push({ t: b[b.length - 1].t, v: agg(b.map(p => p.v).filter(x => x !== null), 'avg'),
+      e: agg(b.map(p => p.e).filter(x => x !== null), m.extAgg), e2: agg(b.map(p => p.e2).filter(x => x !== null), m.ext2Agg),
+      s: b[0].s ? b[0].s.map((_, j) => agg(b.map(p => p.s[j]), 'avg')) : null });
+  }
+  return out;
+}
+
+function chartHtml() {
+  const m = SRV_METRICS[srvMetric], big = srvRange === '30d', src = big ? srv.hourly : srv.recent;
+  const cutoff = srv.updated / 1000 - SRV_RANGES[srvRange] * 3600;
+  let from = src.t.findIndex(t => t >= cutoff);
+  if (from < 0) from = src.t.length;
+  const pts = chartPoints(src, m, from);
+  chart = null;
+  if (pts.length < 2) return '<div class="empty">Collecting data… the chart fills in after a couple of minutes.</div>';
+  const vals = pts.flatMap(p => [p.v, p.e, p.e2]).filter(x => x !== null);
+  if (!vals.length) return '<div class="empty">Not available on this host.</div>';
+
+  const W = 600, H = 220, L = 40, R = 8, T = 10, B = 24, mx = Math.max(...vals);
+  let lo = 0, hi;
+  if (srvMetric === 'tps') { lo = Math.max(0, Math.floor(Math.min(...vals, 20)) - 2); hi = 20; }
+  else if (srvMetric === 'mspt') hi = Math.max(60, niceMax(mx));
+  else if (srvMetric === 'ram') hi = Math.max(srv.now.ramMax || 0, niceMax(mx));
+  else if (srvMetric === 'cpu') hi = Math.max(20, niceMax(mx));
+  else hi = Math.max(2, niceMax(mx));
+  const t0 = pts[0].t, t1 = Math.max(pts[pts.length - 1].t, t0 + 1);
+  const X = t => L + (t - t0) / (t1 - t0) * (W - L - R), Y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const gap = big ? 7200 : 180;
+
+  const segs = key => {
+    const out = []; let cur = null;
+    pts.forEach((p, i) => {
+      if (p[key] === null || (cur && p.t - pts[i - 1].t > gap)) cur = null;
+      if (p[key] === null) return;
+      if (!cur) { cur = []; out.push(cur); }
+      cur.push([X(p.t), Y(p[key])]);
+    });
+    return out.filter(s => s.length > 1);
+  };
+  const line = s => 'M' + s.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
+  const area = s => `${line(s)}L${s[s.length - 1][0].toFixed(1)} ${Y(lo)}L${s[0][0].toFixed(1)} ${Y(lo)}Z`;
+  const main = segs('v'), ext = m.ext ? segs('e') : [], ext2 = m.ext2 ? segs('e2') : [];
+
+  let g = '';
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * k / 4, y = Y(v);
+    g += `<line x1="${L}" x2="${W - R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" style="stroke:var(--line)" stroke-width="1"/>
+      <text class="axis" x="${L - 5}" y="${(y + 3).toFixed(1)}" text-anchor="end">${Math.round(v * 10) / 10}</text>`;
+  }
+  const guide = (v, label) => v > lo && v < hi
+    ? `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" style="stroke:var(--bad)" stroke-dasharray="4 3" opacity=".6"/>
+       <text class="axis" x="${W - R - 2}" y="${(Y(v) - 3).toFixed(1)}" text-anchor="end" style="fill:var(--bad)">${label}</text>` : '';
+  g += srvMetric === 'tps' ? guide(18, 'lag') : srvMetric === 'mspt' ? guide(50, '50 ms budget') : '';
+  for (let k = 0; k < 4; k++) {
+    const t = t0 + (t1 - t0) * k / 3, d = new Date(t * 1000);
+    const txt = big ? d.toLocaleDateString([], { day: 'numeric', month: 'short' }) : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    g += `<text class="axis" x="${X(t).toFixed(1)}" y="${H - 6}" text-anchor="${k === 0 ? 'start' : k === 3 ? 'end' : 'middle'}">${txt}</text>`;
+  }
+  (srv.restarts || []).filter(t => t > t0 && t < t1).forEach(t => {
+    g += `<line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${T}" y2="${H - B}" style="stroke:var(--muted)" stroke-dasharray="2 3"/>
+      <text class="axis" x="${(X(t) + 3).toFixed(1)}" y="${T + 9}">↻</text>`;
+  });
+  const col = m.color;
+  if (m.stack) {
+    // Contiguous runs of points (split at restarts), then one polygon per kind between its lower and upper edge.
+    const runs = []; let cur = null;
+    pts.forEach((p, i) => {
+      if (p.v === null || (cur && p.t - pts[i - 1].t > gap)) cur = null;
+      if (p.v === null) return;
+      if (!cur) { cur = []; runs.push(cur); }
+      cur.push(i);
+    });
+    const upTo = (i, li) => pts[i].s.slice(0, li + 1).reduce((a, b) => a + b, 0);
+    m.stack.forEach((layer, li) => runs.filter(r => r.length > 1).forEach(r => {
+      const top = r.map(i => `${X(pts[i].t).toFixed(1)} ${Y(upTo(i, li)).toFixed(1)}`);
+      const bottom = r.slice().reverse().map(i => `${X(pts[i].t).toFixed(1)} ${Y(li ? upTo(i, li - 1) : 0).toFixed(1)}`);
+      g += `<path d="M${top.join('L')}L${bottom.join('L')}Z" style="fill:${layer.color}" opacity=".78"/>`;
+    }));
+  } else {
+    g += main.map(s => `<path d="${area(s)}" style="fill:${col}" opacity=".14"/>`).join('')
+      + ext.map(s => `<path d="${line(s)}" fill="none" style="stroke:${m.extColor || 'var(--muted)'}" stroke-width="1" stroke-dasharray="3 2" opacity=".8"/>`).join('')
+      + ext2.map(s => `<path d="${line(s)}" fill="none" style="stroke:${m.ext2Color || 'var(--muted)'}" stroke-width="1" stroke-dasharray="3 2" opacity=".8"/>`).join('')
+      + main.map(s => `<path d="${line(s)}" fill="none" style="stroke:${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+  }
+  g += ''
+    + `<line id="cur" y1="${T}" y2="${H - B}" style="stroke:var(--text);display:none" stroke-width="1" opacity=".6"/>`;
+
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  chart = { pts, t0, t1, W, L, R, X, m };
+  return `<div class="chartwrap" id="chartwrap"><svg viewBox="0 0 ${W} ${H}" role="img"
+    aria-label="${m.label} over the last ${srvRange}: average ${m.fmt(mean)}, lowest ${m.fmt(Math.min(...vals))}, highest ${m.fmt(mx)}">${g}</svg>
+    <div class="tip" id="tip"></div></div>${m.stack ? `<div class="lg">${m.stack.map(l => `<span><i style="background:${l.color}"></i>${l.label}</span>`).join('')}</div>` : ''}`;
+}
+
+function scrub(e) {
+  const w = e.target.closest?.('#chartwrap');
+  if (!w || !chart) return;
+  const r = w.getBoundingClientRect(), xv = (e.clientX - r.left) / r.width * chart.W;
+  const frac = Math.min(1, Math.max(0, (xv - chart.L) / (chart.W - chart.L - chart.R)));
+  const t = chart.t0 + frac * (chart.t1 - chart.t0);
+  let a = 0, b = chart.pts.length - 1;
+  while (b - a > 1) { const mid = (a + b) >> 1; if (chart.pts[mid].t <= t) a = mid; else b = mid; }
+  const p = Math.abs(chart.pts[a].t - t) <= Math.abs(chart.pts[b].t - t) ? chart.pts[a] : chart.pts[b];
+  scrubUntil = Date.now() + 3000;
+  const x = chart.X(p.t), cur = w.querySelector('#cur'), tip = w.querySelector('#tip');
+  cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.style.display = '';
+  const when = new Date(p.t * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const extra = [[p.e, chart.m.extLabel], [p.e2, chart.m.ext2Label]].filter(([v]) => v !== null && v !== undefined)
+    .map(([v, l]) => ` · ${l} ${chart.m.fmt(v)}`).join('');
+  tip.innerHTML = chart.m.stack && p.s
+    ? `${esc(when)}<br><b>${p.v === null ? 'n/a' : chart.m.fmt(p.v)}</b> total<br>${chart.m.stack.map((l, i) => `<span style="color:${l.color}">●</span> ${l.label} ${Math.round(p.s[i]).toLocaleString()}`).join('<br>')}`
+    : `${esc(when)}<br><b>${p.v === null ? 'n/a' : chart.m.fmt(p.v)}</b>${extra}`;
+  tip.style.display = 'block';
+  tip.style.left = Math.min(r.width - 70, Math.max(70, x / chart.W * r.width)) + 'px';
+}
+view.addEventListener('pointermove', scrub);
+view.addEventListener('pointerdown', scrub);
+
+function heatHtml() {
+  const off = Math.round(-new Date().getTimezoneOffset() / 60); // UTC hour-of-week -> viewer's local hour-of-week
+  const avg = Array(168).fill(0), cnt = Array(168).fill(0);
+  for (let u = 0; u < 168; u++) { const l = ((u + off) % 168 + 168) % 168; avg[l] = srv.heatmap.avg[u]; cnt[l] = srv.heatmap.n[u]; }
+  const hours = cnt.reduce((a, b) => a + b, 0);
+  if (hours < 24) return `<div class="empty">Collecting data… ${hours} hour${hours === 1 ? '' : 's'} recorded so far. The heatmap fills in as the server runs.</div>`;
+  const max = Math.max(...avg, 0.01);
+  const slot = i => `${DAYS_LONG[Math.floor(i / 24)]} ${String(i % 24).padStart(2, '0')}:00`;
+  let h = '<div class="heat" role="img" aria-label="Average players online by weekday and hour"><span></span>'
+    + [0, 6, 12, 18].map(x => `<span class="hh">${String(x).padStart(2, '0')}:00</span>`).join('');
+  for (let d = 0; d < 7; d++) {
+    h += `<span class="hl">${DAYS[d]}</span>`;
+    for (let hr = 0; hr < 24; hr++) {
+      const i = d * 24 + hr;
+      const bg = cnt[i] ? ` style="background:color-mix(in srgb, var(--accent) ${Math.max(8, Math.round(avg[i] / max * 100))}%, var(--panel-2))"` : '';
+      h += `<span class="hc${heatSel === i ? ' sel' : ''}" data-hw="${i}"${bg}></span>`;
+    }
+  }
+  h += '</div>';
+  let best = 0;
+  for (let i = 1; i < 168; i++) if (avg[i] > avg[best]) best = i;
+  const dayAvg = DAYS.map((_, d) => { let s = 0, c = 0; for (let k = 0; k < 24; k++) if (cnt[d * 24 + k]) { s += avg[d * 24 + k]; c++; } return c ? s / c : 0; });
+  const bestDay = dayAvg.indexOf(Math.max(...dayAvg));
+  const info = heatSel !== null
+    ? `<b>${slot(heatSel)}</b>: ${cnt[heatSel] ? `${avg[heatSel].toFixed(1)} players on average (${cnt[heatSel]} sample${cnt[heatSel] === 1 ? '' : 's'})` : 'no data yet'}`
+    : `Busiest: <b>${slot(best)}</b> (${avg[best].toFixed(1)} players on average). Most active day: <b>${DAYS_LONG[bestDay]}</b>. Tap a cell for details.`;
+  return `${h}<div class="legend">quiet<i></i>busy</div><div class="callout">${info}</div>`;
+}
+
+function chunksHtml(n) {
+  const c = srv.chunks, worlds = Object.entries(c.perWorld).sort((a, b) => b[1] - a[1]);
+  const maxD = Math.max(...c.perDay.values, 1), bw = 300 / c.perDay.values.length;
+  const bars = c.perDay.values.map((v, i) => {
+    const t = c.perDay.start + i * 86400, hgt = v ? Math.max(1.5, v / maxD * 54) : 0;
+    return `<rect x="${(i * bw + 1).toFixed(1)}" y="${(58 - hgt).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${hgt.toFixed(1)}" rx="1.5" style="fill:var(--accent)" opacity="${i === c.perDay.values.length - 1 ? 1 : .65}"><title>${fmtDay(t)}: ${v.toLocaleString()} new chunks</title></rect>`;
+  }).join('');
+  const rows = worlds.map(([name, v]) => `<div class="wrow"><span>${esc(pretty(name))}</span>
+    <div class="meter"><div style="width:${(v / (c.total || 1) * 100).toFixed(1)}%"></div></div><b class="val">${v.toLocaleString()}</b></div>`).join('');
+  return `<div class="bigcount" data-count="${c.total}" data-f="int">${c.total.toLocaleString()}</div>
+    <div class="sub" style="color:var(--muted);margin-bottom:10px">chunks generated${c.since ? ` since tracking began on ${fmtDay(c.since / 1000)}` : ''}</div>
+    ${rows}
+    <div style="color:var(--muted);font-size:12px;margin:12px 0 4px">New chunks per day, last 30 days</div>
+    <svg viewBox="0 0 300 60" style="width:100%;height:auto;display:block" role="img" aria-label="New chunks per day for the last 30 days">${bars}</svg>
+    `;
+}
+
+function loadedHtml(n) {
+  const b = n.entityBreakdown || {}, total = n.entities || 0;
+  const parts = ENTITY_LAYERS.map(l => ({ ...l, v: b[l.id] || 0 }));
+  const bar = parts.filter(p => p.v > 0).map(p => `<span style="flex:${p.v};background:${p.color}" title="${p.label}: ${p.v}"></span>`).join('');
+  const legend = parts.map(p => `<span><i style="background:${p.color}"></i>${p.icon} ${p.label} <b>${p.v.toLocaleString()}</b></span>`).join('');
+  const hot = b.hotspot
+    ? `<div class="callout ${b.hotspot >= 80 ? 'warn' : ''}">Busiest chunk holds <b>${b.hotspot}</b> entities (${esc(pretty(b.hotspotWorld))})${b.hotspot >= 80 ? '. That is a likely lag source.' : '.'}</div>` : '';
+  const worlds = (n.worlds || []).map(w => `<div class="wrow"><span>${esc(pretty(w.name))}</span><span style="color:var(--muted)">${w.chunks.toLocaleString()} chunks</span><b class="val">${w.entities.toLocaleString()}</b></div>`).join('');
+  return `<div class="pair"><div><span>Chunks loaded</span><div class="bigcount">${(n.loadedChunks || 0).toLocaleString()}</div></div>
+      <div><span>Entities loaded</span><div class="bigcount">${total.toLocaleString()}</div></div></div>
+    <div class="stackbar" role="img" aria-label="Entities by kind">${bar}</div><div class="lg">${legend}</div>${hot}
+    <div style="margin-top:12px">${worlds}</div>`;
+}
+
+function numbersHtml() {
+  const t = srv.numbers || {};
+  const tiles = NUM_TILES.filter(([, key]) => t[key] > 0).map(([ic, key, label, f, conv, cap]) => {
+    const v = conv(t[key]);
+    return `<div class="num"><div class="ic">${ic}</div><b data-count="${v}" data-f="${f}">${COUNT_FMT[f](v)}</b><span>${label}</span>${cap ? `<i>${cap(t[key], t)}</i>` : ''}</div>`;
+  });
+  return tiles.length ? `<div class="nums">${tiles.join('')}</div>` : '<div class="empty">Nothing to count yet.</div>';
+}
+
+function recordsHtml() {
+  const r = srv.records, rows = [];
+  if (r.peakOnline?.value > 0) rows.push(['👥 Most players at once', r.peakOnline.value, r.peakOnline.t]);
+  if (r.lowestTps) rows.push(['🐌 Lowest TPS', r.lowestTps.value.toFixed(1), r.lowestTps.t]);
+  if (r.longestUptime?.value > 0) rows.push(['⏳ Longest uptime', dur(r.longestUptime.value), r.longestUptime.t]);
+  if (r.busiestDay) rows.push(['📅 Busiest day', `${r.busiestDay.playerHours} player-hours`, r.busiestDay.t]);
+  const lag = `<div class="rec"><span>🥵 Lag spikes, last 24h</span><b>${r.lagMinutes24h ? `${r.lagMinutes24h} min below 18 TPS` : 'none'}</b></div>`;
+  return rows.map(([l, v, t]) => `<div class="rec"><span>${l}</span><b>${v}<br><span>${fmtDay(t)}</span></b></div>`).join('') + lag;
+}
+
+function renderServer() {
+  if (srvErr) return `<div class="empty">${esc(srvErr)}</div>`;
+  if (!srv) return '<div class="empty">Loading server stats…</div>';
+  const n = srv.now;
+  if (n.tps === undefined) return '<div class="empty">The server just started. The first readings arrive in a few seconds…</div>';
+  const ranges = Object.keys(SRV_RANGES).map(k => `<button data-range="${k}" class="${k === srvRange ? 'active' : ''}">${k}</button>`).join('');
+  const metrics = Object.entries(SRV_METRICS).map(([k, m]) => `<button data-metric="${k}" class="${k === srvMetric ? 'active' : ''}">${m.label}</button>`).join('');
+  return `<div class="srv">
+    ${heroHtml(n)}
+    ${gaugesHtml(n)}
+    <div class="card"><h3>📈 History</h3>
+      <div class="coll-tabs">${metrics}</div><div class="coll-tabs">${ranges}</div>${chartHtml()}
+      <div class="sub" style="color:var(--muted);font-size:12px">Drag across the chart for exact values. ${SRV_METRICS[srvMetric].note || ''} ↻ marks a restart.</div></div>
+    <div class="card"><h3>🔥 When is everyone online? <small>${Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, ' ')}</small></h3>${heatHtml()}</div>
+    <div class="card"><h3>🧩 What's loaded</h3>${loadedHtml(n)}</div>
+    <div class="card"><h3>🗺️ World &amp; chunks</h3>${chunksHtml(n)}</div>
+    <div><h3 style="margin:0 0 10px;font-size:15px">🌍 The server in numbers</h3>${numbersHtml()}</div>
+    <div class="card"><h3>🏅 Hall of records</h3>${recordsHtml()}</div>
+  </div>`;
+}
+
+/** Counts the big numbers up once, when the tab is first opened. */
+function afterServer() {
+  if (!srvFirst || !srv) return;
+  srvFirst = false;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const els = [...view.querySelectorAll('[data-count]')], start = performance.now(), D = 800;
+  const step = now => {
+    const k = Math.min(1, (now - start) / D), e = 1 - (1 - k) ** 3;
+    els.forEach(el => { el.textContent = COUNT_FMT[el.dataset.f](+el.dataset.count * e); });
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+async function pollServer() {
+  try {
+    const res = await fetch('/api/server', { cache: 'no-store' });
+    if (res.status === 404) { srvErr = 'Server stats are turned off on this server.'; srv = null; }
+    else { srv = await res.json(); srvErr = ''; }
+  } catch { return; }
+  if (tab === 'server') render();
+}
+
 function render() {
-  if (!data) return;
+  if (!data && tab !== 'server') return;
+  if (tab === 'server' && Date.now() < scrubUntil) return; // don't rebuild the chart under a dragging finger
   const scroll = window.scrollY;
-  view.innerHTML = { boards: renderBoards, collections: renderCollections, achievements: renderAchievements, facts: renderFacts }[tab]();
+  view.innerHTML = { boards: renderBoards, collections: renderCollections, achievements: renderAchievements, facts: renderFacts, server: renderServer }[tab]();
   window.scrollTo(0, scroll);
+  if (tab === 'server') afterServer();
 }
 
 document.getElementById('tabs').addEventListener('click', e => {
   const t = e.target.dataset.tab; if (!t) return;
   tab = t;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  if (t === 'server') { srvFirst = true; pollServer(); }
   render();
 });
 view.addEventListener('click', e => {
@@ -385,6 +835,10 @@ view.addEventListener('click', e => {
   if (e.target.closest('[data-advback]')) { advPlayer = null; render(); }
   if (ac) { advCat = ac.dataset.advcat; render(); }
   if (e.target.closest('[data-advsort]')) { advSort = advSort === 'rare' ? 'common' : 'rare'; render(); }
+  const rg = e.target.closest('[data-range]'), mt = e.target.closest('[data-metric]'), hc = e.target.closest('[data-hw]');
+  if (rg) { srvRange = rg.dataset.range; render(); }
+  if (mt) { srvMetric = mt.dataset.metric; render(); }
+  if (hc) { heatSel = +hc.dataset.hw; render(); }
 });
 view.addEventListener('input', e => {
   if (e.target.id === 'advsearch') {
@@ -416,6 +870,7 @@ async function poll() {
 }
 poll();
 setInterval(poll, 3000);
+setInterval(() => { if (tab === 'server' && !document.hidden) pollServer(); }, 5000);
 </script>
 </body>
 </html>
